@@ -31,46 +31,11 @@ export function newWidget(type:CibWidget['type']):CibWidget{
   if(type==='quote')return {...base,title:'Frase de destaque',text:'Uma ideia que merece destaque.'};
   if(type==='testimonials')return {...base,title:'Quem participa recomenda',columns:3,items:[{title:'Nome do associado',role:'Profissão ou empresa',text:'Escreva um depoimento real e autorizado.',image:''}]};
   if(type==='iconGrid')return {...base,title:'O que você ganha ao fazer parte',columns:3,items:[{title:'Conexões',text:'Networking que gera novas oportunidades.',icon:'users'},{title:'Conhecimento',text:'Aprendizado prático para crescer.',icon:'lightbulb'},{title:'Negócios',text:'Compartilhe projetos e construa parcerias.',icon:'handshake'}]};
-  if(type==='imageText')return {...base,title:'Compartilhando boas experiências',text:'Uma história do Conectando Ideias Brasil.',label:'NOSSO GRUPO',image:'',imagePosition:'left'};
-  if(type==='signup')return {...base,title:'Faça parte do Conectando Ideias Brasil',text:'Preencha o formulário para manifestar seu interesse.'};
+  if(type==='imageText')return {...base,title:'Compartilhando boas experiências',text:'Uma história sobre sua empresa.',label:'NOSSO GRUPO',image:'',imagePosition:'left'};
+  if(type==='signup')return {...base,title:'Entre em contato com nossa equipe',text:'Preencha o formulário para manifestar seu interesse.'};
   return base;
 }
-export const defaultCibPage:CibPage = {
-  title:'Conectando Ideias Brasil',font:'modern',headerColor:'#083d31',accentColor:'#d5ee48',
-  sections:[
-    {id:'inicio',label:'Destaque principal',columns:2,background:'#083d31',color:'#ffffff',padding:90,widgets:[
-      {id:'hero-title',type:'heading',title:'Grandes ideias nascem de conexões verdadeiras.',text:'Um grupo de empresários e empreendedores que acredita no poder de compartilhar experiências, abrir portas e crescer junto.',fontSize:55},
-      {id:'hero-photo',type:'image',image:'https://editoranpe.com.br/wp-content/uploads/2025/12/06.jpeg',label:'Empreendedores reunidos'}
-    ]},
-    {id:'proposito',label:'Propósito',columns:1,background:'#f5f8f3',color:'#133d33',padding:80,widgets:[
-      {id:'our-story',type:'heading',title:'Desde 2016, transformando boas conversas em grandes oportunidades.',fontSize:39,align:'center'},
-      {id:'our-text',type:'text',text:'O Conectando Ideias Brasil nasceu para aproximar empresários, estimular a troca de experiências e construir uma rede de apoio ao empreendedorismo em Blumenau e região.',align:'center',fontSize:19}
-    ]},
-    {id:'como-funciona',label:'Nossos diferenciais',columns:1,background:'#ffffff',color:'#103d31',padding:80,widgets:[
-      {id:'pillars',type:'features',title:'Conexões que realmente fazem a diferença',items:[
-        {title:'Momento Empresa',text:'Apresente seu negócio ao grupo.'},{title:'Hot Seat',text:'Desafios reais, soluções coletivas.'},
-        {title:'Minuto Conectando',text:'Dicas práticas e atualizações de mercado.'},{title:'Palestras e workshops',text:'Conhecimento, aprendizado e colaboração.'}
-      ]}
-    ]},
-    {id:'encontros',label:'Encontros',columns:2,background:'#e9f4eb',color:'#123c32',padding:78,widgets:[
-      {id:'meet-photo',type:'image',image:'https://editoranpe.com.br/wp-content/uploads/2025/12/07.jpeg',label:'Networking na prática'},
-      {id:'meet-copy',type:'text',text:'Encontros mensais, em geral na segunda terça-feira às 8h, no Auditório do Casarão dos Sonhos, em Blumenau. Um espaço para aprender, construir confiança e realizar negócios.',fontSize:24}
-    ]},
-    {id:'depoimentos',label:'Depoimentos',columns:1,background:'#ffffff',color:'#133d33',padding:80,widgets:[
-      {id:'quote-1',type:'testimonials',title:'Quem participa recomenda',columns:3,items:[{title:'Associado do grupo',role:'Empreendedor',text:'Espaço reservado para um depoimento verdadeiro de um associado.',image:''}]}
-    ]},
-    {id:'perguntas',label:'Dúvidas frequentes',columns:1,background:'#f5f8f3',color:'#103b2e',padding:70,widgets:[
-      {id:'faq-one',type:'faq',title:'Perguntas frequentes',items:[
-        {title:'Qual é o valor da mensalidade?',text:'O valor de referência é R$ 40 por mês, destinado aos custos operacionais do grupo.'},
-        {title:'Quando acontecem os encontros?',text:'Em geral, toda segunda terça-feira do mês, às 8h, em Blumenau.'},
-        {title:'Como posso participar?',text:'Envie uma solicitação. A entrada está sujeita à aprovação da comissão.'}
-      ]}
-    ]},
-    {id:'participar',label:'Quero participar',columns:1,background:'#083d31',color:'#ffffff',padding:76,widgets:[
-      {id:'signup-one',type:'signup',title:'Faça parte dessa conexão',text:'Conte um pouco sobre você e seu negócio. Nossa comissão entrará em contato.'}
-    ]}
-  ]
-};
+export {whiteLabelDemoPage as defaultCibPage} from './whiteLabel';
 function Signup({w}:{w:CibWidget}){
  const [form,setForm]=useState({name:'',email:'',phone:'',company:'',message:'',consent:false,website:''});
  const [status,setStatus]=useState('');
@@ -109,7 +74,7 @@ export function CibWidgetView({widget:w,editing=false}:{widget:CibWidget;editing
 export function VisualSite({page,editing=false,selected,select,dragStart,dropAt}:{page:CibPage;editing?:boolean;selected?:string|null;select?:(kind:'section'|'widget',id:string)=>void;dragStart?:(section:string,widget:string)=>void;dropAt?:(section:string,widget:string)=>void}){
  const [menu,setMenu]=useState(false);
  return <div className={`cib-rendered-site cib-font-${page.font}`} style={{'--cib-header':page.headerColor,'--cib-accent':page.accentColor} as React.CSSProperties}>
-  <header className="cib-visual-header"><a href="/" className="cib-visual-logo" onClick={editing?e=>e.preventDefault():undefined}>{page.logoImage?<img src={page.logoImage} alt="Logotipo do grupo" />:<span className="cib-simple-logo" aria-hidden="true">✳</span>} <strong>{page.brandName||'Conectando Ideias'} <span>{page.brandSubtitle||'BRASIL'}</span></strong></a><button type="button" aria-label={menu?'Fechar menu':'Abrir menu'} className="cib-menu-toggle" onClick={()=>setMenu(!menu)}>{menu?<X/>:<Menu/>}</button><nav className={menu?'open':''}>{(page.menuItems!==undefined?page.menuItems:page.sections.slice(0,5).map(s=>({id:s.id,label:s.label,href:`#${s.id}` }))).map(link=><a key={link.id} href={editing?'#':link.href} onClick={editing?e=>e.preventDefault():()=>setMenu(false)}>{link.label}</a>)}{!editing&&<Link to="/entrar">Área do associado</Link>}</nav></header>
+  <header className="cib-visual-header"><a href="/" className="cib-visual-logo" onClick={editing?e=>e.preventDefault():undefined}>{page.logoImage?<img src={page.logoImage} alt="Logotipo da empresa" />:<span className="cib-simple-logo" aria-hidden="true">✳</span>} <strong>{page.brandName||'Sua organização'} <span>{page.brandSubtitle||'PLATAFORMA'}</span></strong></a><button type="button" aria-label={menu?'Fechar menu':'Abrir menu'} className="cib-menu-toggle" onClick={()=>setMenu(!menu)}>{menu?<X/>:<Menu/>}</button><nav className={menu?'open':''}>{(page.menuItems!==undefined?page.menuItems:page.sections.slice(0,5).map(s=>({id:s.id,label:s.label,href:`#${s.id}` }))).map(link=><a key={link.id} href={editing?'#':link.href} onClick={editing?e=>e.preventDefault():()=>setMenu(false)}>{link.label}</a>)}{!editing&&<Link to="/entrar">Área do associado</Link>}</nav></header>
   <main>{page.sections.map(section=><section key={section.id} id={section.id} className={`cib-visual-section ${editing&&selected===section.id?'cib-selected':''}`} style={{background:section.background,color:section.color,padding:`${section.padding}px 22px`,backgroundImage:section.backgroundImage?`linear-gradient(#0005,#0005),url("${section.backgroundImage}")`:undefined,backgroundPosition:'center',backgroundSize:'cover'}}>
    {editing&&<button className="cib-section-handle" onClick={()=>select?.('section',section.id)}><PlusCircle size={14}/> Editar seção: {section.label}</button>}
    <div className="cib-visual-grid" style={{gridTemplateColumns:`repeat(${section.columns}, minmax(0, 1fr))`}}>
@@ -118,6 +83,6 @@ export function VisualSite({page,editing=false,selected,select,dragStart,dropAt}
     </div>)}
    </div>
   </section>)}</main>
-  <footer className="cib-visual-footer">© {new Date().getFullYear()} {page.footerText||'Conectando Ideias Brasil · Blumenau, SC'} <Link to="/privacidade">Privacidade</Link></footer>
+  <footer className="cib-visual-footer">© {new Date().getFullYear()} {page.footerText||'Sua organização · Conteúdo personalizável'} <Link to="/privacidade">Privacidade</Link></footer>
  </div>;
 }

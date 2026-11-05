@@ -1,47 +1,60 @@
 # Conectando Ideias Brasil
 
-Site institucional e sistema de administração para membros, inscrições, mensalidades, controle financeiro e Pix. Stack: React 19 + Vite, API no Cloudflare Workers e banco D1.
+Site institucional e sistema de gestão de membros, mensalidades e Pix. Stack: React + Vite, Cloudflare Worker (API), D1 (banco de dados).
 
-**Repositório**: https://github.com/editoranpe/conectando-ideias-brasil  
-**Worker**: https://conectando-ideias-brasil.jeferson-samagaia.workers.dev/
+- Site: https://conectando-ideias-brasil.jeferson-samagaia.workers.dev/
+- Repositório: https://github.com/editoranpe/conectando-ideias-brasil
+- Para apresentação, acesse `/demonstracao` (apenas dados fictícios).
 
-## Implantação do site no Cloudflare Worker
+## Política de credenciais: somente Cloudflare
 
-Este projeto é um **Worker com Static Assets**, não um Cloudflare Pages Functions. O arquivo `wrangler.jsonc` controla a publicação: Worker `conectando-ideias-brasil`, frontend em `dist/` e API em `src/worker.ts` sob `/api/*`.
+**Nunca colocar tokens, senhas, segredos ou dados privados no GitHub, nem em GitHub Actions Secrets.** GitHub hospeda somente código-fonte, configurações não confidenciais e a compilação do frontend.
 
-1. No Cloudflare, abra Workers & Pages → `conectando-ideias-brasil` → **Settings → Builds**. Confirme que a conexão está no repositório **editoranpe/conectando-ideias-brasil**, branch **main**, diretório raiz `/`.
-2. Use **Build command**: `npm run build` e **Deploy command**: `npx wrangler deploy`. Se a conexão tiver apenas deploy, existe um arquivo estático inicial em `dist/` e um GitHub Actions que compila e versiona o frontend automaticamente após commits em `main`. Acompanhe a aba Actions e os builds do Cloudflare para confirmar o resultado.
-3. Em **Settings → Domains & Routes**, confirme que o domínio **workers.dev** está habilitado para este Worker.
-4. Teste `/` e `/demonstracao` (dados fictícios). O código Pix possui testes automatizados. **O modo de demonstração não registra dinheiro de verdade.**
+Credenciais de produção devem ser cadastradas **exclusivamente em Cloudflare → Workers & Pages → conectando-ideias-brasil → Settings → Variables and Secrets → Add → Secret**. O Cloudflare criptografa esses valores e não permite recuperá-los em texto no painel.
 
-## Ativação do banco de membros e financeiro
+A automação anterior de provisionamento via GitHub foi REMOVIDA. Nenhum workflow deste repositório requer `CLOUDFLARE_API_TOKEN` ou `CLOUDFLARE_ACCOUNT_ID`. Se esses segredos tiverem sido cadastrados no GitHub, exclua-os na interface do repositório e revogue/rotacione qualquer token que tenha sido exposto.
 
-> Sem o banco D1 configurado, a API retorna **503**. O site e as telas de demonstração continuam acessíveis. **Não cadastre dados pessoais reais no modo de demonstração.**
+### Configurações de produção
 
-1. No painel Cloudflare, abra **Storage & databases → D1** e crie um banco com nome `conectando-ideias-brasil-db`.
-2. Execute a migração inicial `migrations/0001_initial.sql` no **Console** desse banco. Alternativamente, execute com Wrangler autenticado em sua conta:
-   ```sh
-   npx wrangler d1 execute conectando-ideias-brasil-db --remote --file=migrations/0001_initial.sql
-   ```
-3. Na configuração do Worker, vá em **Settings → Bindings → Add Binding → D1 database** e crie a variável **`DB`** apontando para esse banco. Se as implantações substituírem os bindings, fixe o `database_id` real em `wrangler.jsonc` dentro de `d1_databases`:
-   ```json
-   "d1_databases": [
-     { "binding": "DB", "database_name": "conectando-ideias-brasil-db", "database_id": "SEU_UUID_REAL_DO_D1" }
-   ]
-   ```
-   Não use UUID fictício. O identificador real aparece na página do banco no Cloudflare.
-4. Em **Settings → Variables & Secrets**, cadastre um segredo `SETUP_TOKEN` forte, aleatório e exclusivo (mínimo 24 caracteres), **nunca no GitHub**. Acesse `/entrar`, informe o segredo e crie a primeira conta administrativa com senha forte. Remova ou substitua o segredo após o primeiro acesso.
-5. Dentro do painel, informe a chave Pix verdadeira do grupo, o nome correto do favorecido e sua cidade. Confirme um QR Code com seu banco antes de cobrar mensalidades.
+| Configuração | Tipo | Onde configurar | Observações |
+|---|---|---|---|
+| `SETUP_TOKEN` | **Secret** | Cloudflare → Worker → Settings → Variables and Secrets | Segredo aleatório de 24+ caracteres, somente para a criação do administrador inicial |
+| `DB` | **D1 binding** | Cloudflare → Worker → Bindings (ver abaixo) | NÃO é variável textual; aponta para um banco D1, sem senha |
+| Chave Pix, nome e cidade do favorecido | Dados administrativos | Painel do sistema após login | Guardados no D1; serão mostrados nas cobranças Pix, portanto não equivalem a um token bancário |
 
-### Nota sobre Pix
+**Nenhuma variável precisa ser cadastrada no GitHub.** A conexão GitHub → Worker é gerenciada pela própria Cloudflare.
 
-O código **Pix Copia e Cola/QR Code é estático** e usa a chave informada. A tesouraria confirma manualmente no extrato. O envio de comprovante pelo membro não equivale a pagamento confirmado. **Conciliação bancária automática** exige integração com um provedor financeiro autorizado e não está ativada.
+## Implantação automática
 
-## Segurança e privacidade
+O Cloudflare Workers Builds está conectado ao repositório `editoranpe/conectando-ideias-brasil`, branch `main`, raiz `/`.
 
-A API usa controle de acesso por perfil (`admin`, `finance`, `member`), hashes de senha PBKDF2, cookies HttpOnly, logs de auditoria e validação de origem em mutações. Não registre no GitHub chaves bancárias privadas, `.dev.vars`, senhas ou dados dos membros. Antes de processar dados reais, valide os controles de segurança, faça backup do banco, defina uma política LGPD, e configure responsabilidades da tesouraria e retenção de dados. Faça testes com o banco D1 recém-criado antes de uso real.
+No Cloudflare, em Worker → Settings → Build, use:
 
-## Desenvolvimento
+- **Build command:** `npm run build`
+- **Deploy command:** `npx wrangler deploy`
+
+O arquivo `wrangler.jsonc` é público e contém somente a configuração técnica do Worker, sem qualquer credencial, ID de conta ou UUID de banco. Ele define `keep_vars: true`, para preservar variáveis de ambiente configuradas pelo painel durante deploys. Segredos cadastrados no Cloudflare também são preservados.
+
+### Banco D1
+
+O Worker usa um **binding D1 denominado `DB`**. O `wrangler.jsonc` declara apenas esse nome, sem IDs nem informações privadas. O Wrangler 4.45+ suporta provisionamento automático de D1 durante um deploy. Com a integração GitHub/Cloudflare, os IDs gerados ficam no Cloudflare, sem serem escritos no repositório.
+
+1. Abra **Workers & Pages → conectando-ideias-brasil → Bindings** e verifique se o binding `DB` está disponível.
+2. Abra **Storage & Databases → D1** no Cloudflare e localize o banco vinculado a `DB`. Se o provisionamento automático não funcionar, crie manualmente um banco chamado `conectando-ideias-brasil-db` e selecione-o no binding `DB` do Worker. Não use uma variável de texto chamada `DB`.
+3. Nesse banco D1, abra **Console** e execute o SQL contido em [migrations/0001_initial.sql](migrations/0001_initial.sql). Execute apenas uma vez por banco. Antes de alterações futuras com dados reais, faça backup.
+4. No Worker, em **Settings → Variables and Secrets**, crie o segredo `SETUP_TOKEN` como tipo **Secret** e aplique a mudança.
+5. Confirme `GET /api/health` (HTTP 200) e `GET /api/setup-status` (deve indicar `setup_required: true` se não houver administrador).
+6. Acesse `/entrar` e inicialize a conta administrativa com o `SETUP_TOKEN`. Em seguida, remova ou rotacione o segredo após o primeiro acesso.
+
+**Atenção:** `/api/health` verifica apenas que o binding existe; o teste de `/api/setup-status` confirma também que a tabela inicial de usuários foi criada. Sem tabelas, a API não está pronta para uso real.
+
+### Pix e gestão financeira
+
+O Pix Copia e Cola / QR Code usa a chave e os dados do favorecido informados no painel. Não realiza transferências nem confirma recebimentos automaticamente. A tesouraria confirma o pagamento a partir do extrato bancário.
+
+O modo `/demonstracao` usa dados fictícios. Não insira nele dados pessoais ou financeiros verdadeiros. Antes da operação real, confirme permissões de acesso, política de privacidade (LGPD), backups e processo de conciliação.
+
+## Desenvolvimento e verificações
 
 ```sh
 npm install
@@ -49,23 +62,9 @@ npm run check
 npx wrangler dev
 ```
 
-## Diagnóstico
+- `GET /api/health`: HTTP 200 se existe binding `DB`, HTTP 503 se estiver ausente.
+- `GET /api/setup-status`: verifica se já existe administrador (exige tabelas D1).
+- `GET /`: site público.
+- `GET /demonstracao`: painel fictício.
 
-- `GET /api/health` → retorna JSON quando o D1 está conectado; retorna 503 se não houver binding.
-- `GET /api/setup-status` → indica se precisa criar o primeiro administrador.
-- `GET /` e `/demonstracao` → site institucional e visualização fictícia.
-- O envio de código ao GitHub **não comprova sozinho** que o Cloudflare implantou: valide os registros de Builds e o URL final.
-
-## Provisionamento automatizado do D1 (sem compartilhar credenciais)
-
-O workflow manual [Provision and connect Cloudflare D1](.github/workflows/provision-d1.yml) evita copiar UUIDs manualmente e mantém a associação permanente com o Worker no `wrangler.jsonc`.
-
-**O que configurar uma única vez** (somente na interface do GitHub, nunca em commits ou conversas):
-
-1. No Cloudflare, gere um API Token com permissão **Account > D1 > Edit**, restrito à conta que hospeda este Worker. Consulte [Cloudflare: API Tokens](https://dash.cloudflare.com/profile/api-tokens).
-2. No repositório, abra **Settings > Secrets and variables > Actions > New repository secret**. Cadastre `CLOUDFLARE_API_TOKEN` com o token e `CLOUDFLARE_ACCOUNT_ID` com o identificador da conta Cloudflare.
-3. Abra **Actions > Provision and connect Cloudflare D1 > Run workflow**, usando a branch `main`.
-
-O workflow consulta o D1 `conectando-ideias-brasil-db`; cria somente se ainda não existir; liga o binding `DB`, aplica as migrações SQL na base remota e grava o UUID em `wrangler.jsonc`. Em caso de divergência com um binding já existente, **interrompe sem substituí-lo**. O commit com a configuração aciona o deploy do Worker ligado ao GitHub. A permissão de escrita do token deve estar limitada a D1; o deploy continua sendo feito pela integração Cloudflare-GitHub já instalada.
-
-**Atenção:** este workflow não recebe nem cria a senha do administrador. Após o banco estar ligado e `/api/health` retornar HTTP 200, adicione **SETUP_TOKEN** como segredo de execução em **Cloudflare Worker > Settings > Variables and Secrets** e crie a primeira conta através de `/entrar`. O token de inicialização deve ser aleatório e ter pelo menos 24 caracteres. Não envie o segredo por mensagem.
+**Importante:** acesso ao repositório GitHub não dá permissão para mudar os recursos da conta Cloudflare. Alterações de bindings, variáveis e segredos são feitas na interface da Cloudflare, com a conta autorizada.

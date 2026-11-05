@@ -4,6 +4,7 @@ import { ArrowLeft, ArrowRight, Eye, EyeOff, LockKeyhole, ShieldCheck, UserRound
 import PublicSite, { Privacy } from './Site';
 import Dashboard from './Dashboard';
 import VisualEditor from './VisualEditor';
+import FinanceTools from './FinanceTools';
 import { api, User } from './api';
 
 function PortalEntry({activate = false}:{activate?:boolean}) {
@@ -47,4 +48,11 @@ function ProtectedEditor(){
  return allowed==='yes'?<VisualEditor/>:<Navigate to="/entrar" replace/>;
 }
 
-export default function App(){return <Routes><Route path="/" element={<PublicSite/>}/><Route path="/privacidade" element={<Privacy/>}/><Route path="/entrar" element={<PortalEntry/>}/><Route path="/ativar" element={<PortalEntry activate/>}/><Route path="/painel" element={<Protected/>}/><Route path="/editar-site" element={<ProtectedEditor/>}/><Route path="/demonstracao" element={<Dashboard demo user={{id:'demo',email:'demonstracao@conectandoideiasbrasil.com',role:'admin',member_id:'demo'}} onLogout={()=>{location.href='/';}}/>}/><Route path="*" element={<Navigate to="/" replace/>}/></Routes>}
+function ProtectedFinanceTools({mode}:{mode:'recurrences'|'import'}){
+ const [allowed,setAllowed]=useState<'loading'|'yes'|'no'>('loading');
+ useEffect(()=>{api<{user:User}>('me').then(x=>setAllowed(x.user.role==='admin'?'yes':'no')).catch(()=>setAllowed('no'));},[]);
+ if(allowed==='loading')return <div className="page-loading">Carregando financeiro...</div>;
+ return allowed==='yes'?<FinanceTools mode={mode}/>:<Navigate to="/entrar" replace/>;
+}
+
+export default function App(){return <Routes><Route path="/" element={<PublicSite/>}/><Route path="/privacidade" element={<Privacy/>}/><Route path="/entrar" element={<PortalEntry/>}/><Route path="/ativar" element={<PortalEntry activate/>}/><Route path="/painel" element={<Protected/>}/><Route path="/editar-site" element={<ProtectedEditor/>}/><Route path="/assinaturas" element={<ProtectedFinanceTools mode="recurrences"/>}/><Route path="/importar" element={<ProtectedFinanceTools mode="import"/>}/><Route path="/demonstracao" element={<Dashboard demo user={{id:'demo',email:'demonstracao@conectandoideiasbrasil.com',role:'admin',member_id:'demo'}} onLogout={()=>{location.href='/';}}/>}/><Route path="*" element={<Navigate to="/" replace/>}/></Routes>}

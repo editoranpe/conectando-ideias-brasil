@@ -35,6 +35,7 @@ jobs:
                grep -qi 'Conectando Ideias Brasil' /tmp/cib-site.html &&
                grep -q 'cloudflare-worker' /tmp/cib-version.json &&
                grep -q '2026-11-05-cib-v2' /tmp/cib-version.json &&
+               grep -q 'workers-pbkdf2-100k-fix' /tmp/cib-version.json &&
                grep -q 'visual_builder' /tmp/cib-version.json &&
                grep -q '"ok":true' /tmp/cib-health.json &&
                grep -q '"setup_required":' /tmp/cib-setup.json &&

@@ -100,7 +100,7 @@ const defaults: Record<string, string> = {
   contact_whatsapp: '',
   meeting_place: 'Auditório do Casarão dos Sonhos, Blumenau - SC',
   pix_bank_name: '', pix_bank_code: '', pix_branch: '', pix_account: '', pix_account_type: 'corrente', pix_tax_id: '', pix_description: 'Mensalidade CIB',
-  pix_display_bank_details: 'false',
+  pix_display_bank_details: 'false', billing_auto_notices: 'false',
 };
 async function getSettings(db: DB): Promise<Record<string, string>> {
   const rows = (await db.prepare('SELECT key,value FROM settings').all<{key: string; value: string}>()).results;

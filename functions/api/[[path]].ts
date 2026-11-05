@@ -164,9 +164,11 @@ async function handle(context: Context): Promise<Response> {
     if (setupHash !== await sha256(env.SETUP_TOKEN)) fail('Código de configuração inválido', 403);
     const loginEmail = email(data.email);
     const name = required(data.name, 'o nome do administrador', 120);
+    const newPassword = str(data.password, 128);
+    if (newPassword.length < 12) fail('A senha deve conter pelo menos 12 caracteres.', 400);
     let hashed: { salt: string; hash: string };
     try {
-      hashed = await passwordHash(str(data.password, 128));
+      hashed = await passwordHash(newPassword);
     } catch (error) {
       console.error('CIB_SETUP_CRYPTO', error);
       fail('Falha ao proteger a senha. Informe à equipe o código CIB_SETUP_CRYPTO.', 500);

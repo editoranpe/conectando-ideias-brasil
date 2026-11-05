@@ -8,10 +8,13 @@
     "build": "tsc --noEmit -p tsconfig.json && vite build",
     "preview": "wrangler dev",
     "typecheck:api": "tsc --noEmit -p tsconfig.functions.json",
-    "check": "npm run build && npm run typecheck:api && npm run test:pix && npm run test:schema",
+    "check": "npm run build && npm run typecheck:api && npm run test:pix && npm run test:schema && npm run test:recurring && npm run test:csv && npm run test:builder",
     "test:pix": "node --experimental-strip-types --test tests/pix.test.ts",
     "deploy": "npm run check && wrangler deploy",
-    "test:schema": "node --experimental-strip-types --test tests/schema.test.ts"
+    "test:schema": "node --experimental-strip-types --test tests/schema.test.ts",
+    "test:recurring": "node --experimental-strip-types --test tests/recurring.test.ts",
+    "test:csv": "node --experimental-strip-types --test tests/csv-import.test.ts",
+    "test:builder": "node --experimental-strip-types --test tests/site-builder.test.ts"
   },
   "dependencies": {
     "lucide-react": "^0.468.0",

@@ -5,6 +5,7 @@ import App from './App';
 import './styles.css';
 import './visual.css';
 import './financeTools.css';
+import './flatDesign.css';
 
 createRoot(document.getElementById('root')!).render(
   <React.StrictMode><BrowserRouter><App/></BrowserRouter></React.StrictMode>

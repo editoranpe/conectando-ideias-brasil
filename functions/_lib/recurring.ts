@@ -58,6 +58,8 @@ export async function runDuePlans(db: D1Like, todayPeriod = currentMonthBR()): P
         const results = await db.batch(chargeQueries.slice(i,i+50)) as Array<{meta?:{changes?:number}}>;
         installments += (results || []).reduce((sum,r)=>sum+Number(r?.meta?.changes || 0),0);
       }
+      await db.prepare("INSERT OR IGNORE INTO recurring_charge_links(plan_id,charge_id,created_at) SELECT ?,c.id,? FROM charges c JOIN recurring_plan_members rpm ON rpm.member_id=c.member_id WHERE rpm.plan_id=? AND c.period=?")
+        .bind(plan.id,now,plan.id,period).run();
       processed += 1;
       const next = addMonths(plan.start_period,processed);
       await db.prepare('UPDATE recurring_plans SET processed=?,next_period=?,status=?,updated_at=? WHERE id=? AND next_period=?')

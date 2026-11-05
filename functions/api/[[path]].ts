@@ -1,11 +1,14 @@
 import { buildPixCode } from '../_lib/pix';
 import { INITIAL_SCHEMA_STATEMENTS } from '../_lib/schema';
+import { ensureExtensionSchema } from '../_lib/extensions';
+import { runDuePlans, currentMonthBR, plannedMonths } from '../_lib/recurring';
+import { validatePage } from '../_lib/siteBuilder';
 import { NOW, uuid, sha256, randomToken, passwordHash, verifyPassword, readSessionCookie, sessionCookie, expireCookie } from '../_lib/auth';
 
 type Role = 'admin' | 'finance' | 'member';
 type Query = { bind: (...values: unknown[]) => Query; first: <T = any>() => Promise<T | null>; all: <T = any>() => Promise<{results: T[]}>; run: () => Promise<{meta: {changes?: number}}> };
 type DB = { prepare: (sql: string) => Query; batch: (queries: Query[]) => Promise<unknown> };
-type Env = { DB: DB; SETUP_TOKEN?: string };
+type Env = { DB: DB; SETUP_TOKEN?: string; RESEND_API_KEY?: string; RESEND_FROM?: string; WHATSAPP_ACCESS_TOKEN?: string; WHATSAPP_PHONE_NUMBER_ID?: string };
 type Context = { request: Request; env: Env };
 type User = { id: string; email: string; role: Role; member_id: string | null };
 
@@ -18,14 +21,14 @@ function fail(message: string, status = 400): never {
 function json(data: unknown, status = 200, headers: Record<string, string> = {}): Response {
   return new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff', ...headers } });
 }
-async function body(request: Request): Promise<Record<string, any>> {
+async function body(request: Request, limit = 30_000): Promise<Record<string, any>> {
   if (!request.headers.get('Content-Type')?.toLowerCase().includes('application/json')) fail('Envie os dados em JSON', 415);
   const length = Number(request.headers.get('Content-Length') || 0);
-  if (length > 30_000) fail('Requisição muito grande', 413);
+  if (length > limit) fail('Requisição muito grande', 413);
   try {
     const value = await request.json();
     if (!value || Array.isArray(value) || typeof value !== 'object') throw new Error('bad');
-    if (JSON.stringify(value).length > 30_000) fail('Requisição muito grande', 413);
+    if (JSON.stringify(value).length > limit) fail('Requisição muito grande', 413);
     return value;
   } catch (error) {
     if ((error as AppError).status) throw error;
@@ -96,6 +99,8 @@ const defaults: Record<string, string> = {
   contact_email: '',
   contact_whatsapp: '',
   meeting_place: 'Auditório do Casarão dos Sonhos, Blumenau - SC',
+  pix_bank_name: '', pix_bank_code: '', pix_branch: '', pix_account: '', pix_account_type: 'corrente', pix_tax_id: '', pix_description: 'Mensalidade CIB',
+  pix_display_bank_details: 'false',
 };
 async function getSettings(db: DB): Promise<Record<string, string>> {
   const rows = (await db.prepare('SELECT key,value FROM settings').all<{key: string; value: string}>()).results;
@@ -139,11 +144,16 @@ async function handle(context: Context): Promise<Response> {
   const is = (verb: string, ...parts: string[]) => method === verb && JSON.stringify(path) === JSON.stringify(parts);
 
   await initializeEmptyDatabase(db);
+  await ensureExtensionSchema(db);
 
   if (is('GET', 'health')) return json({ ok: true, service: 'Conectando Ideias Brasil', date: NOW() });
   if (is('GET', 'public')) {
     const s = await getSettings(db);
     return json({ group_name: s.group_name, monthly_amount_cents: Number(s.monthly_amount_cents), due_day: Number(s.due_day), meeting_place: s.meeting_place, contact_email: s.contact_email, contact_whatsapp: s.contact_whatsapp, pix_available: !!(s.pix_key && s.pix_receiver) });
+  }
+  if (is('GET', 'public-page')) {
+    const row = await db.prepare("SELECT published_json,published_version FROM site_pages WHERE slug='home'").first<{published_json:string|null;published_version:number}>();
+    return json({ page: row?.published_json ? JSON.parse(row.published_json) : null, version: row?.published_version||0 });
   }
   if (is('GET', 'setup-status')) return json({ setup_required: await setupRequired(db) });
   if (is('POST', 'setup')) {
@@ -244,6 +254,183 @@ async function handle(context: Context): Promise<Response> {
   // Rotas autenticadas a partir deste ponto.
   const user = await account(context);
   const isManager = user.role === 'admin' || user.role === 'finance';
+
+  // Editor visual: apenas o administrador tem autorização para rascunhar e publicar.
+  if (is('GET','builder','page')) {
+    if (user.role!=='admin') fail('Editor restrito ao administrador principal',403);
+    const row = await db.prepare("SELECT * FROM site_pages WHERE slug='home'").first<any>();
+    return json({draft:row?.draft_json?JSON.parse(row.draft_json):null,published:row?.published_json?JSON.parse(row.published_json):null,version:row?.published_version||0});
+  }
+  if (is('PATCH','builder','page')) {
+    if (user.role!=='admin') fail('Editor restrito ao administrador principal',403);
+    const input=(await body(request,150_000)).page;
+    if (!validatePage(input)) fail('O layout contém campos inválidos ou excede o limite permitido',400);
+    await db.prepare("INSERT INTO site_pages(slug,draft_json,updated_at) VALUES('home',?,?) ON CONFLICT(slug) DO UPDATE SET draft_json=excluded.draft_json,updated_at=excluded.updated_at")
+      .bind(JSON.stringify(input),NOW()).run();
+    await audit(db,user,'save_page_draft','page','home');
+    return json({saved:true});
+  }
+  if (is('POST','builder','publish')) {
+    if (user.role!=='admin') fail('Publicação restrita ao administrador principal',403);
+    const row=await db.prepare("SELECT draft_json,published_version FROM site_pages WHERE slug='home'").first<{draft_json:string|null;published_version:number}>();
+    if (!row?.draft_json || !validatePage(JSON.parse(row.draft_json))) fail('Salve um rascunho válido antes de publicar',409);
+    const version=(row.published_version||0)+1,now=NOW();
+    await db.batch([
+      db.prepare("UPDATE site_pages SET published_json=draft_json,published_version=?,published_at=?,updated_at=? WHERE slug='home'").bind(version,now,now),
+      db.prepare("INSERT INTO site_page_versions(id,slug,version,document_json,published_at,published_by) VALUES(?,'home',?,?,?,?)")
+        .bind(uuid(),version,row.draft_json,now,user.id),
+    ]);
+    await audit(db,user,'publish_page','page','home',{version});
+    return json({published:true,version});
+  }
+  if (is('GET','builder','history')) {
+    if (user.role!=='admin') fail('Acesso restrito à administração',403);
+    return json({versions:(await db.prepare("SELECT id,version,published_at FROM site_page_versions WHERE slug='home' ORDER BY version DESC LIMIT 30").all()).results});
+  }
+  if (is('POST','builder','restore')) {
+    if (user.role!=='admin') fail('Acesso restrito à administração',403);
+    const input=await body(request);
+    if (!Number.isInteger(input.version)) fail('Versão inválida');
+    const row=await db.prepare("SELECT document_json FROM site_page_versions WHERE slug='home' AND version=?").bind(input.version).first<{document_json:string}>();
+    if(!row)fail('Versão não encontrada',404);
+    await db.prepare("UPDATE site_pages SET draft_json=?,updated_at=? WHERE slug='home'").bind(row.document_json,NOW()).run();
+    await audit(db,user,'restore_page_draft','page','home',{version:input.version});
+    return json({restored:true});
+  }
+
+  // Assinaturas: uma cobrança mensal, emitida por Cron, até completar as parcelas.
+  if (is('GET','recurrences')) {
+    if(!isManager)fail('Acesso restrito à tesouraria',403);
+    const plans=(await db.prepare("SELECT p.*,COUNT(r.member_id) AS member_count FROM recurring_plans p LEFT JOIN recurring_plan_members r ON r.plan_id=p.id GROUP BY p.id ORDER BY p.created_at DESC LIMIT 100").all()).results;
+    return json({plans});
+  }
+  if (is('POST','recurrences')) {
+    if(user.role!=='admin')fail('Somente o administrador pode criar assinaturas',403);
+    const input=await body(request,90_000);
+    const title=required(input.title,'o nome da assinatura',100),start=validPeriod(input.start_period);
+    const repetitions=Number(input.repetitions),dueDay=Number(input.due_day);
+    if(!Number.isInteger(repetitions)||repetitions<1||repetitions>36)fail('Informe entre 1 e 36 parcelas');
+    if(!Number.isInteger(dueDay)||dueDay<1||dueDay>28)fail('Dia de vencimento entre 1 e 28');
+    const members=Array.isArray(input.member_ids)?[...new Set(input.member_ids.filter((x:unknown):x is string=>typeof x==='string' && x.length<100))]:[];
+    if(members.length<1||members.length>500)fail('Selecione entre 1 e 500 associados');
+    const active=(await db.prepare("SELECT id FROM members WHERE status='active'").all<{id:string}>()).results;
+    const approved=new Set(active.map(x=>x.id));
+    if(members.some(x=>!approved.has(x)))fail('Há associados inativos ou não encontrados na seleção');
+    const amount=input.amount_cents==null||input.amount_cents===''?null:cents(input.amount_cents);
+    const channels=['portal','email','whatsapp','both'].includes(input.channels)?input.channels:'portal';
+    const id=uuid(),now=NOW();
+    await db.prepare("INSERT INTO recurring_plans(id,title,start_period,next_period,repetitions,due_day,amount_cents,channels,created_by,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)")
+      .bind(id,title,start,start,repetitions,dueDay,amount,channels,user.id,now,now).run();
+    for(let i=0;i<members.length;i+=50)await db.batch(members.slice(i,i+50).map(member_id=>db.prepare("INSERT INTO recurring_plan_members(plan_id,member_id) VALUES(?,?)").bind(id,member_id)));
+    const issued=await runDuePlans(db);
+    await audit(db,user,'create_recurrence','recurring_plan',id,{repetitions,member_count:members.length,channels});
+    return json({id,repetitions,members:members.length,periods:plannedMonths(start,repetitions),issued},201);
+  }
+  if (is('POST','recurrences','run')) {
+    if(user.role!=='admin')fail('Acesso restrito à administração',403);
+    const result=await runDuePlans(db);
+    await audit(db,user,'run_recurrences','recurring_plan','all',result);
+    return json(result);
+  }
+  if (method==='PATCH'&&path[0]==='recurrences'&&path.length===2) {
+    if(user.role!=='admin')fail('Acesso restrito à administração',403);
+    const input=await body(request),change:Record<string,unknown>={};
+    if('status' in input){
+      if(!['active','paused','completed'].includes(input.status))fail('Situação inválida');
+      change.status=input.status;
+    }
+    if('due_day' in input){
+      if(!Number.isInteger(input.due_day)||input.due_day<1||input.due_day>28)fail('Dia de vencimento inválido');
+      change.due_day=input.due_day;
+    }
+    if(!Object.keys(change).length)fail('Nenhuma alteração informada');
+    for(const [key,value] of Object.entries(change))await db.prepare(`UPDATE recurring_plans SET ${key}=?,updated_at=? WHERE id=?`).bind(value,NOW(),path[1]).run();
+    await audit(db,user,'update_recurrence','recurring_plan',path[1],{fields:Object.keys(change)});
+    return json({success:true});
+  }
+  if (method==='PATCH'&&path[0]==='charges'&&path.length===2) {
+    if(user.role!=='admin')fail('Acesso restrito à administração',403);
+    const input=await body(request),due=validDate(input.due_date);
+    const result=await db.prepare("UPDATE charges SET due_date=?,updated_at=? WHERE id=? AND status='pending'").bind(due,NOW(),path[1]).run();
+    if(!result.meta?.changes)fail('Cobrança não encontrada ou já quitada',409);
+    await audit(db,user,'reschedule_charge','charge',path[1],{due_date:due});
+    return json({success:true});
+  }
+
+  // Migração a partir de Excel/Google Sheets: CSV é analisado no cliente,
+  // enviado em lotes e aceito somente para o administrador.
+  if (is('POST','members','import')) {
+    if(user.role!=='admin')fail('Acesso restrito à administração',403);
+    const input=await body(request,150_000);
+    if(!Array.isArray(input.rows)||input.rows.length<1||input.rows.length>100)fail('Envie lotes de até 100 associados');
+    const existing=(await db.prepare('SELECT email FROM members').all<{email:string}>()).results;
+    const seen=new Set(existing.map(x=>x.email.toLowerCase()));
+    const statements:Query[]=[];
+    let skipped=0;
+    for(const row of input.rows){
+      if(!row||typeof row!=='object')fail('Linha de planilha inválida');
+      const name=required(row.name,'nome do associado',120),e=email(row.email);
+      if(seen.has(e)){skipped++;continue}
+      seen.add(e);
+      const monthly=(row.monthly_fee_cents==null||row.monthly_fee_cents==='')?null:cents(row.monthly_fee_cents);
+      const status=['active','inactive','pending'].includes(row.status)?row.status:'active';
+      const now=NOW();
+      statements.push(db.prepare("INSERT OR IGNORE INTO members(id,name,email,phone,company,segment,city,notes,status,monthly_fee_cents,joined_at,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)")
+        .bind(uuid(),name,e,str(row.phone,40),str(row.company,120),str(row.segment,120),str(row.city,90),str(row.notes,1000),status,monthly,currentDateBR(),now,now));
+    }
+    let created=0;
+    for(let i=0;i<statements.length;i+=50){
+      const results=await db.batch(statements.slice(i,i+50)) as Array<{meta?:{changes?:number}}>;
+      created+=(results||[]).reduce((n,x)=>n+Number(x.meta?.changes||0),0);
+    }
+    await audit(db,user,'import_members','members','batch',{created,skipped});
+    return json({created,skipped});
+  }
+  if (is('GET','reports','members.csv')) {
+    if(!isManager)fail('Acesso restrito',403);
+    const rows=(await db.prepare("SELECT name,email,phone,company,segment,city,status,monthly_fee_cents,notes FROM members ORDER BY name COLLATE NOCASE LIMIT 30000").all()).results;
+    return csv(rows,[['name','Nome'],['email','E-mail'],['phone','Telefone'],['company','Empresa'],['segment','Segmento'],['city','Cidade'],['status','Status'],['monthly_fee_cents','Mensalidade (centavos)'],['notes','Observações']]);
+  }
+  if (method==='POST'&&path[0]==='charges'&&path.length===3&&path[2]==='notify') {
+    if(!isManager)fail('Acesso restrito à tesouraria',403);
+    const input=await body(request);
+    const channel=input.channel;
+    if(channel!=='email'&&channel!=='whatsapp')fail('Canal de aviso inválido');
+    const charge=await db.prepare("SELECT c.id,c.period,c.due_date,c.amount_cents,c.status,m.name,m.email,m.phone FROM charges c JOIN members m ON m.id=c.member_id WHERE c.id=?").bind(path[1]).first<any>();
+    if(!charge||charge.status!=='pending')fail('Cobrança inexistente ou não está aberta',409);
+    const amount=(charge.amount_cents/100).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+    const textMessage=`Olá, ${charge.name}! Sua mensalidade do Conectando Ideias Brasil de ${charge.period} no valor de ${amount} vence em ${charge.due_date}. Acesse o portal para consultar o Pix: ${new URL(request.url).origin}/entrar`;
+    let manualUrl='';
+    if(channel==='email'){
+      manualUrl=`mailto:${encodeURIComponent(charge.email)}?subject=${encodeURIComponent('Mensalidade Conectando Ideias Brasil')}&body=${encodeURIComponent(textMessage)}`;
+      if(env.RESEND_API_KEY&&env.RESEND_FROM){
+        const response=await fetch('https://api.resend.com/emails',{method:'POST',headers:{Authorization:`Bearer ${env.RESEND_API_KEY}`,'Content-Type':'application/json'},body:JSON.stringify({from:env.RESEND_FROM,to:[charge.email],subject:'Sua mensalidade Conectando Ideias Brasil',text:textMessage})});
+        if(!response.ok)fail('O provedor de e-mail recusou o envio. Verifique o domínio e as credenciais no Cloudflare.',502);
+        await db.prepare("INSERT OR IGNORE INTO notice_logs(id,charge_id,channel,status,created_at) VALUES(?,?,?,?,?)").bind(uuid(),charge.id,channel,'sent',NOW()).run();
+        return json({delivery:'sent',channel});
+      }
+    }else{
+      const number=String(charge.phone||'').replace(/\D/g,'');
+      if(!number)fail('Associe um telefone ao cadastro antes de enviar por WhatsApp');
+      const phone=number.startsWith('55')?number:'55'+number;
+      manualUrl=`https://wa.me/${phone}?text=${encodeURIComponent(textMessage)}`;
+      if(env.WHATSAPP_ACCESS_TOKEN&&env.WHATSAPP_PHONE_NUMBER_ID){
+        // Meta WhatsApp Business requires the approved template named cib_mensalidade.
+        const response=await fetch(`https://graph.facebook.com/v21.0/${env.WHATSAPP_PHONE_NUMBER_ID}/messages`,{method:'POST',headers:{Authorization:`Bearer ${env.WHATSAPP_ACCESS_TOKEN}`,'Content-Type':'application/json'},body:JSON.stringify({
+          messaging_product:'whatsapp',to:phone,type:'template',
+          template:{name:'cib_mensalidade',language:{code:'pt_BR'},components:[{type:'body',parameters:[
+            {type:'text',text:charge.name},{type:'text',text:charge.period},
+            {type:'text',text:amount},{type:'text',text:charge.due_date}
+          ]}]}
+        })});
+        if(!response.ok)fail('A API WhatsApp recusou o envio. Confira o modelo aprovado e as credenciais.',502);
+        await db.prepare("INSERT OR IGNORE INTO notice_logs(id,charge_id,channel,status,created_at) VALUES(?,?,?,?,?)").bind(uuid(),charge.id,channel,'sent',NOW()).run();
+        return json({delivery:'sent',channel});
+      }
+    }
+    return json({delivery:'manual',channel,url:manualUrl,message:'Abra o aplicativo para revisar e enviar o aviso. O sistema ainda não fez o envio automaticamente.'});
+  }
+
   if (is('GET', 'dashboard')) {
     if (!isManager) {
       const charges = (await db.prepare('SELECT id,period,due_date,amount_cents,status,paid_at FROM charges WHERE member_id=? ORDER BY period DESC LIMIT 24').bind(user.member_id).all()).results;

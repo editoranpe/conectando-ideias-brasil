@@ -41,12 +41,12 @@ O Worker usa um **binding D1 denominado `DB`**. O `wrangler.jsonc` declara apena
 
 1. Abra **Workers & Pages → conectando-ideias-brasil → Bindings** e verifique se o binding `DB` está disponível.
 2. Abra **Storage & Databases → D1** no Cloudflare e localize o banco vinculado a `DB`. Se o provisionamento automático não funcionar, crie manualmente um banco chamado `conectando-ideias-brasil-db` e selecione-o no binding `DB` do Worker. Não use uma variável de texto chamada `DB`.
-3. Nesse banco D1, abra **Console** e execute o SQL contido em [migrations/0001_initial.sql](migrations/0001_initial.sql). Execute apenas uma vez por banco. Antes de alterações futuras com dados reais, faça backup.
+3. Na primeira chamada da API, o sistema cria automaticamente as tabelas **apenas se esse D1 ainda não contiver nenhuma tabela do aplicativo**. O SQL de referência está em [migrations/0001_initial.sql](migrations/0001_initial.sql). Se o banco já contiver tabelas parcialmente criadas ou dados reais, a instalação automática não modifica essas tabelas: faça backup e execute a migração manualmente após revisar o estado do banco.
 4. No Worker, em **Settings → Variables and Secrets**, crie o segredo `SETUP_TOKEN` como tipo **Secret** e aplique a mudança.
 5. Confirme `GET /api/health` (HTTP 200) e `GET /api/setup-status` (deve indicar `setup_required: true` se não houver administrador).
 6. Acesse `/entrar` e inicialize a conta administrativa com o `SETUP_TOKEN`. Em seguida, remova ou rotacione o segredo após o primeiro acesso.
 
-**Atenção:** `/api/health` verifica apenas que o binding existe; o teste de `/api/setup-status` confirma também que a tabela inicial de usuários foi criada. Sem tabelas, a API não está pronta para uso real.
+**Atenção:** a primeira chamada à API inicializa o schema apenas em um banco totalmente vazio. `/api/setup-status` confirma a criação das tabelas. Se houver tabelas parciais, elas não são alteradas automaticamente.
 
 ### Pix e gestão financeira
 

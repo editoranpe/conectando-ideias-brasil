@@ -1,9 +1,10 @@
 import { buildPixCode } from '../_lib/pix';
+import { INITIAL_SCHEMA_SQL } from '../_lib/schema';
 import { NOW, uuid, sha256, randomToken, passwordHash, verifyPassword, readSessionCookie, sessionCookie, expireCookie } from '../_lib/auth';
 
 type Role = 'admin' | 'finance' | 'member';
 type Query = { bind: (...values: unknown[]) => Query; first: <T = any>() => Promise<T | null>; all: <T = any>() => Promise<{results: T[]}>; run: () => Promise<{meta: {changes?: number}}> };
-type DB = { prepare: (sql: string) => Query; batch: (queries: Query[]) => Promise<unknown> };
+type DB = { prepare: (sql: string) => Query; batch: (queries: Query[]) => Promise<unknown>; exec: (sql: string) => Promise<unknown> };
 type Env = { DB: DB; SETUP_TOKEN?: string };
 type Context = { request: Request; env: Env };
 type User = { id: string; email: string; role: Role; member_id: string | null };
@@ -116,6 +117,16 @@ function csv(rows: any[], columns: [string,string][]): Response {
   return new Response('\ufeff' + content, { headers: { 'Content-Type': 'text/csv; charset=utf-8', 'Cache-Control': 'no-store', 'Content-Disposition': 'attachment; filename="conectando-ideias-relatorio.csv"' } });
 }
 
+// Bootstrap only a completely empty D1. Never auto-modify a database with app tables.
+async function initializeEmptyDatabase(db: DB): Promise<void> {
+  const found = await db.prepare(
+    "SELECT COUNT(*) AS total FROM sqlite_master WHERE type='table' AND name IN ('users','members','sessions','login_attempts','invitations','settings','applications','charges','payment_reports','transactions','audit_logs')"
+  ).first<{ total: number }>();
+  if (Number(found?.total || 0) === 0) {
+    await db.exec(INITIAL_SCHEMA_SQL);
+  }
+}
+
 async function handle(context: Context): Promise<Response> {
   const { request, env } = context;
   const db = env.DB;
@@ -124,6 +135,8 @@ async function handle(context: Context): Promise<Response> {
   if (!['GET','POST','PATCH'].includes(method)) fail('Método não permitido', 405);
   if (method !== 'GET') requireOrigin(request);
   const is = (verb: string, ...parts: string[]) => method === verb && JSON.stringify(path) === JSON.stringify(parts);
+
+  await initializeEmptyDatabase(db);
 
   if (is('GET', 'health')) return json({ ok: true, service: 'Conectando Ideias Brasil', date: NOW() });
   if (is('GET', 'public')) {

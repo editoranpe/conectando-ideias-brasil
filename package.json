@@ -8,9 +8,10 @@
     "build": "tsc --noEmit -p tsconfig.json && vite build",
     "preview": "wrangler dev",
     "typecheck:api": "tsc --noEmit -p tsconfig.functions.json",
-    "check": "npm run build && npm run typecheck:api && npm run test:pix",
+    "check": "npm run build && npm run typecheck:api && npm run test:pix && npm run test:schema",
     "test:pix": "node --experimental-strip-types --test tests/pix.test.ts",
-    "deploy": "npm run check && wrangler deploy"
+    "deploy": "npm run check && wrangler deploy",
+    "test:schema": "node --experimental-strip-types --test tests/schema.test.ts"
   },
   "dependencies": {
     "lucide-react": "^0.468.0",

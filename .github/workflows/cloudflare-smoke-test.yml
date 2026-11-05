@@ -47,5 +47,6 @@ jobs:
           if [ "$setup_status" = '200' ]; then
             echo 'D1 acessível e tabelas iniciais presentes.'
           else
-            echo 'O D1 está conectado, mas é necessário executar migrations/0001_initial.sql no console D1 do Cloudflare.'
+            echo 'O D1 está conectado, mas a inicialização automática do schema ainda não está disponível. Verifique se o Worker atualizou e revise migrations/0001_initial.sql no Cloudflare.'
+            exit 1
           fi

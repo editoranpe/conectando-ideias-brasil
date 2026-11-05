@@ -7,6 +7,9 @@ on:
       - '.github/workflows/cloudflare-smoke-test.yml'
       - 'dist/index.html'
       - 'wrangler.jsonc'
+      - 'functions/_lib/schema.ts'
+      - 'functions/api/[[path]].ts'
+      - 'src/worker.ts'
   workflow_dispatch:
 
 permissions:

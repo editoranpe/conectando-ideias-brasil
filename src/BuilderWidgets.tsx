@@ -53,7 +53,7 @@ export function IconGrid({widget:w}:{widget:CibWidget}){
    </div>
  </div>;
 }
-export function ImageTextBlock({widget:w}:{widget:CibWidget}){
+export function ImageTextBlock({widget:w,editing=false}:{widget:CibWidget;editing?:boolean}){
  return <div className={`cib-image-text cib-photo-${w.imagePosition==='right'?'right':'left'}`}>
    <div className="cib-image-text-photo">{w.image?
       <img src={w.image} alt={w.label||w.title||'Imagem do grupo'} loading="lazy" onError={e=>e.currentTarget.classList.add('cib-image-unavailable')}/>:

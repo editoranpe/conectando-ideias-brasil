@@ -59,12 +59,18 @@ export function membersFromCsv(input:string):{rows:ImportedMember[];errors:strin
 export type ImportedCharge={member_email:string;period:string;due_date:string;amount_cents:number;status:'pending'|'paid'|'canceled';paid_on:string|null;reference:string};
 export type ImportedTransaction={kind:'income'|'expense';occurred_on:string;amount_cents:number;category:string;description:string;party:string;payment_method:string;reference:string};
 function readTable(input:string){const all=parseCsv(input);if(all.length<2)throw Error('Informe um CSV com cabeçalho e pelo menos uma linha');const headers=all[0].map(normalize);return {headers,records:all.slice(1),field:(head:string[],row:string[])=>{const i=headers.findIndex(h=>head.map(normalize).includes(h));return i<0?'':String(row[i]||'').trim();}};}
-function dateOnly(input:string){const value=input.slice(0,10);return /^20\d{2}-\d{2}-\d{2}$/.test(value)?value:'';}
+function dateOnly(input:string){
+ const value=input.trim().slice(0,10);
+ if(/^20\d{2}-\d{2}-\d{2}$/.test(value))return value;
+ const br=value.match(/^(\d{2})\/(\d{2})\/(20\d{2})$/);
+ return br?`${br[3]}-${br[2]}-${br[1]}`:'';
+}
+function periodOnly(input:string){const x=input.trim();if(/^20\d{2}-(0[1-9]|1[0-2])$/.test(x))return x;const br=x.match(/^(0[1-9]|1[0-2])\/(20\d{2})$/);return br?`${br[2]}-${br[1]}`:' ';}
 export function chargesFromCsv(input:string):{rows:ImportedCharge[];errors:string[]}{
  const t=readTable(input),rows:ImportedCharge[]=[],errors:string[]=[];
  for(const [i,row] of t.records.entries()){
   const get=(h:string[])=>t.field(h,row);
-  const member_email=get(['e-mail','email','emaildoassociado']).toLowerCase(),period=get(['competencia','periodo','period']);
+  const member_email=get(['e-mail','email','emaildoassociado']).toLowerCase(),period=periodOnly(get(['competencia','periodo','period']));
   const due_date=dateOnly(get(['vencimento','data de vencimento','due_date']));
   const value=get(['valorcentavos','valor','amount_cents']);
   const idx=t.headers.findIndex(h=>['valorcentavos','valor','amountcents'].includes(h));

@@ -1,0 +1,37 @@
+name: Build site for Cloudflare Workers
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - 'dist/**'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    # Commits made by this job don't need another build.
+    if: "!contains(github.event.head_commit.message, '[skip asset build]')"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+      - name: Compile frontend and check API and Pix
+        run: npm run check
+      - name: Publish compiled assets to connected branch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -f dist
+          if ! git diff --cached --quiet; then
+            git commit -m "build: publish compiled web assets [skip asset build]"
+            git push origin HEAD:main
+          fi

@@ -26,6 +26,8 @@ export const whiteLabelDemoPage:CibPage = {
   brandSubtitle:'PLATAFORMAS PERSONALIZÁVEIS',
   logoImage:'/assets/npe-brand.svg',
   footerText:'Editora NPE · Plataforma demonstrativa para personalização de clientes',
+  privacyTitle:'Privacidade e tratamento de dados',
+  privacyText:'MODELO DEMONSTRATIVO: substitua este texto pela política de privacidade da empresa antes de coletar dados reais.\\n\\nInforme razão social, identidade do controlador, finalidade, base legal, prazo de retenção, compartilhamentos, direitos dos titulares e canal de contato.\\n\\nEste exemplo não constitui orientação jurídica e não deve ser publicado como política definitiva.',
   menuItems:[
     {id:'nav_inicio',label:'Início',href:'#inicio'},
     {id:'nav_solucoes',label:'Recursos',href:'#solucoes'},

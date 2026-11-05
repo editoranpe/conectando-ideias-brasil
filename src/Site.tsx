@@ -1,89 +1,38 @@
-import React, { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { ArrowRight, ArrowUpRight, ChevronDown, CircleCheck, Coffee, Facebook, Globe2, Handshake, Heart, Lightbulb, MapPin, Menu, Mic2, ShieldCheck, Sparkles, Target, TrendingUp, Users, Wallet, X } from 'lucide-react';
-import { api, brl } from './api';
-import { VisualSite, type CibPage } from './VisualSite';
+import {useEffect,useState} from 'react';
+import {Link} from 'react-router-dom';
+import {VisualSite,type CibPage} from './VisualSite';
+import {whiteLabelDemoPage,NPE_THEME} from './whiteLabel';
+import {api} from './api';
 
-const LOGO = 'https://editoranpe.com.br/wp-content/uploads/2025/12/Conectando-09-12-2025-1.png';
-const photos = {
-  meeting: 'https://editoranpe.com.br/wp-content/uploads/2025/12/07.jpeg',
-  group: 'https://editoranpe.com.br/wp-content/uploads/2025/12/06.jpeg',
-  background: 'https://editoranpe.com.br/wp-content/uploads/2025/12/conexoes-scaled.png',
-};
-const pillars = [
-  {icon:Mic2,number:'01',title:'Momento Empresa',description:'Seu negócio ganha voz. Apresente soluções, ideias e oportunidades para todo o grupo.',tone:'lime'},
-  {icon:TrendingUp,number:'02',title:'Hot Seat',description:'Desafios reais discutidos com a experiência de outros empreendedores.',tone:'blue'},
-  {icon:Lightbulb,number:'03',title:'Minuto Conectando',description:'Ideias práticas, dicas de mercado e conhecimento relevante em poucos minutos.',tone:'yellow'},
-  {icon:Target,number:'04',title:'Palestras e workshops',description:'Aprendizado contínuo, troca de experiências e encontros que inspiram ação.',tone:'green'},
-];
-const benefits = [
-  {icon:Handshake,title:'Networking com intenção',text:'Relacionamentos genuínos entre pessoas que querem construir, não apenas vender.'},
-  {icon:Sparkles,title:'Aprendizado compartilhado',text:'Acesso a ideias, vivências e ferramentas aplicáveis ao seu negócio.'},
-  {icon:Globe2,title:'Visibilidade para sua marca',text:'Um espaço para sua empresa ser conhecida e lembrada por outras empresas.'},
-  {icon:Heart,title:'Comunidade que acolhe',text:'Gente que entende os desafios de empreender e se ajuda de verdade.'},
-];
-const faq = [
-  {q:'Preciso ter uma empresa grande para participar?',a:'Não. O Conectando Ideias Brasil reúne empreendedores de diferentes portes e segmentos. A variedade de experiências é uma das nossas maiores forças.'},
-  {q:'Como funcionam os encontros?',a:'Os encontros oficiais são mensais, geralmente na segunda terça-feira do mês, às 8h, em Blumenau. A programação pode incluir Momento Empresa, Hot Seat e conteúdo especial.'},
-  {q:'Quanto custa fazer parte?',a:'O valor de referência é R$ 40 mensais, direcionados aos custos do grupo. A tesouraria poderá atualizar esse valor no sistema e informar as condições vigentes.'},
-  {q:'Existe um processo de entrada?',a:'Sim. As manifestações de interesse são avaliadas pela comissão. Você pode preencher o formulário e a equipe retornará para explicar os próximos passos.'},
-  {q:'O grupo é só para trocar cartões?',a:'Não. A proposta é cultivar confiança, aprendizado e ajuda mútua. Novos negócios surgem como resultado dessas boas relações.'},
-];
-
-function Brand({light=false}:{light?:boolean}){
-  return <Link to="/" className={`brand ${light?'brand-light':''}`} aria-label="Conectando Ideias Brasil, início">
-    <span className="brand-icon"><img src={LOGO} alt="" onError={e=>{e.currentTarget.style.display='none';}}/><span className="brand-fallback">C<span>✳</span></span></span>
-    <span className="brand-wordmark"><strong>CONECTANDO</strong><small>IDEIAS BRASIL</small></span>
-  </Link>;
-}
-
+/** Public rendering: an untouched installation shows the placeholder demo.
+ * Publishing from the admin editor replaces the demo with the client's own page.
+ */
 export default function PublicSite(){
-  const [publishedPage,setPublishedPage]=useState<CibPage|null>(null);
-  const [openMenu,setOpenMenu]=useState(false), [faqOpen,setFaqOpen]=useState<number|null>(null);
-  const [amount,setAmount]=useState(4000), [place,setPlace]=useState('Auditório do Casarão dos Sonhos, Blumenau - SC');
-  const [form,setForm]=useState({name:'',email:'',phone:'',company:'',message:'',consent:false,website:''});
-  const [formStatus,setFormStatus]=useState<'idle'|'sending'|'sent'>('idle'),[error,setError]=useState('');
-  useEffect(()=>{api<{monthly_amount_cents:number;meeting_place:string}>('public').then(x=>{setAmount(x.monthly_amount_cents);setPlace(x.meeting_place);}).catch(()=>{});},[]);
-  useEffect(()=>{api<{page:CibPage|null}>('public-page').then(x=>setPublishedPage(x.page)).catch(()=>{});},[]);
-  const submit=async (event:React.FormEvent)=>{event.preventDefault();setError('');setFormStatus('sending');try{await api('apply','POST',form);setFormStatus('sent');}catch(err){setError((err as Error).message);setFormStatus('idle');}};
-  if(publishedPage?.sections?.length)return <VisualSite page={publishedPage}/>;
-  return <div className="site-public">
-    <header className="site-header"><div className="container site-header-content"><Brand/>
-      <nav className={openMenu?'site-nav is-open':'site-nav'} aria-label="Menu principal">
-        <a href="#proposito" onClick={()=>setOpenMenu(false)}>Nosso propósito</a><a href="#como-funciona" onClick={()=>setOpenMenu(false)}>Como funciona</a><a href="#beneficios" onClick={()=>setOpenMenu(false)}>Benefícios</a><a href="#encontros" onClick={()=>setOpenMenu(false)}>Encontros</a>
-        <Link className="nav-access" to="/entrar" onClick={()=>setOpenMenu(false)}>Área do associado <ArrowUpRight size={15}/></Link>
-        <a className="button button-primary nav-join" href="#participar" onClick={()=>setOpenMenu(false)}>Quero participar <ArrowRight size={16}/></a>
-      </nav><button className="mobile-toggle" aria-label={openMenu?'Fechar menu':'Abrir menu'} onClick={()=>setOpenMenu(!openMenu)}>{openMenu?<X/>:<Menu/>}</button>
-    </div></header>
-
-    <main>
-      <section className="hero"><div className="hero-ambient"/><div className="container hero-grid"><div className="hero-copy">
-        <div className="eyebrow light"><span className="eyebrow-dot"/> EM BLUMENAU, CONECTANDO O BRASIL</div>
-        <h1>Grandes ideias nascem de <em>conexões verdadeiras.</em></h1>
-        <p>Um grupo de empresários e empreendedores que acredita no poder de compartilhar experiências, abrir portas e crescer junto.</p>
-        <div className="hero-actions"><a href="#participar" className="button button-lime">Faça parte dessa conexão <ArrowRight size={19}/></a><a className="hero-outline" href="#proposito">Conheça o grupo <ArrowUpRight size={17}/></a></div>
-        <div className="hero-meta"><div className="hero-avatar-row"><span>PS</span><span>OB</span><span>CC</span><span>+</span></div><div><strong>Histórias que se encontram</strong><small>Empreendedores reunidos desde 2016</small></div></div>
-      </div><div className="hero-visual"><div className="hero-photo-frame"><img src={photos.group} alt="Empreendedores reunidos no Conectando Ideias Brasil"/><div className="hero-photo-shade"/></div><div className="floating-note"><span className="floating-note-icon"><Handshake size={23}/></span><div><strong>Ideias que viram negócios</strong><small>Conexões que fazem a diferença</small></div></div><div className="hero-circle hero-circle-one"/><div className="hero-circle hero-circle-two"/></div></div>
-        <div className="container"><div className="hero-bottom"><span><span className="hero-bottom-mark">✳</span> CONEXÕES REAIS</span><span>CONHECIMENTO COMPARTILHADO</span><span>CRESCIMENTO COLETIVO</span></div></div>
-      </section>
-
-      <section id="proposito" className="section story-intro"><div className="container intro-layout"><div><div className="eyebrow">NOSSA ESSÊNCIA</div><h2>O sucesso fica ainda melhor <span>quando é compartilhado.</span></h2></div><div className="intro-body"><p>O Conectando Ideias Brasil nasceu em 2016 com uma convicção simples: empreender não precisa ser uma caminhada solitária.</p><p>Criamos um ambiente onde confiança, cooperação e conversas sinceras transformam experiências individuais em oportunidades para todos.</p><a className="text-link" href="#como-funciona">Descubra nossa dinâmica <ArrowUpRight size={18}/></a></div></div></section>
-
-      <section id="como-funciona" className="section section-pale"><div className="container"><div className="section-heading centered"><span className="eyebrow">A EXPERIÊNCIA CONECTANDO</span><h2>Muito mais que um encontro. <span>Uma rede que se movimenta.</span></h2><p>Cada reunião é desenhada para gerar conversas produtivas, troca de conhecimento e novas possibilidades.</p></div><div className="pillars-layout"><div className="pillars-grid">{pillars.map(item=><article className={`pillar-card tone-${item.tone}`} key={item.title}><div className="pillar-top"><span className="pillar-icon"><item.icon size={24}/></span><span className="pillar-number">{item.number}</span></div><h3>{item.title}</h3><p>{item.description}</p></article>)}</div><div className="pillar-image"><img src={photos.meeting} alt="Participantes em encontro do grupo Conectando Ideias Brasil"/><div className="pillar-caption"><span className="caption-blob"><Users size={19}/></span><span><strong>Trocas que transformam</strong><small>Conexões reais, todos os meses.</small></span></div></div></div></div></section>
-
-      <section className="section green-band"><div className="container green-band-grid"><div><span className="eyebrow light">A NOSSA HISTÓRIA</span><h2>Tudo começou com uma conversa.</h2><p>Em outubro de 2016, apenas 12 participantes deram início a uma história de colaboração. A ideia cresceu porque havia algo valioso unindo todos: a vontade de ajudar outras pessoas a prosperar.</p><div className="story-year"><span>2016</span><small>O início de conexões que seguem crescendo.</small></div></div><div className="history-photo"><img src={photos.group} alt="Registro de encontro do grupo"/><span className="photo-label">Construindo histórias juntos ✳</span></div></div></section>
-
-      <section id="beneficios" className="section benefits"><div className="container"><div className="section-heading"><span className="eyebrow">POR QUE PARTICIPAR</span><h2>Uma comunidade. <span>Muitas possibilidades.</span></h2><p>Oportunidades que ultrapassam as reuniões e acompanham você nos desafios de empreender.</p></div><div className="benefit-grid">{benefits.map((item,i)=><article className="benefit-card" key={item.title}><div className="benefit-head"><span className="benefit-symbol"><item.icon size={27}/></span><span className="benefit-index">0{i+1}</span></div><h3>{item.title}</h3><p>{item.text}</p><span className="benefit-line"/></article>)}</div></div></section>
-
-      <section id="encontros" className="section meeting-section"><div className="container meeting-grid"><div><span className="eyebrow">ONDE NOS ENCONTRAMOS</span><h2>Um lugar para boas ideias se encontrarem.</h2><p>Nosso encontro oficial costuma acontecer na segunda terça-feira de cada mês, às 8h, em Blumenau, Santa Catarina.</p><div className="meeting-place"><span><MapPin size={22}/></span><div><strong>{place}</strong><small>Confirme a programação antes de cada encontro.</small></div></div><a className="button button-dark" href="https://www.google.com/maps/search/?api=1&query=Casar%C3%A3o+dos+Sonhos+Blumenau" rel="noopener noreferrer" target="_blank">Como chegar <ArrowUpRight size={17}/></a></div><div className="meeting-art"><div className="meeting-art-blob"/><img src={photos.meeting} alt="Encontro de networking em Blumenau"/><div className="meeting-sticker"><Coffee size={25}/><span>Um café.<br/>Muitas possibilidades.</span></div></div></div></section>
-
-      <section className="section quotes-section"><div className="container"><div className="section-heading centered"><span className="eyebrow">QUEM VIVE, RECOMENDA</span><h2>Histórias que inspiram <span>novas conexões.</span></h2></div><div className="quote-grid"><article className="quote-card"><div className="quote-stars">✳ ✳ ✳</div><p>“O grupo nasceu de uma inquietude de ter um espaço seguro e estimulante para debater o que realmente importa.”</p><div className="quote-person"><span>PS</span><div><strong>Paulo Soares</strong><small>Fundador do CIB</small></div></div></article><article className="quote-card"><div className="quote-stars">✳ ✳ ✳</div><p>“Desde que entrei em 2018, minha rede de contatos triplicou. O ambiente é acolhedor e focado em resultados reais.”</p><div className="quote-person"><span>OB</span><div><strong>Odete Brancher</strong><small>Empreendedora e palestrante</small></div></div></article><article className="quote-card"><div className="quote-stars">✳ ✳ ✳</div><p>“Os Hot Seats me ajudaram a resolver problemas que eu levaria meses para solucionar sozinha.”</p><div className="quote-person"><span>CC</span><div><strong>Carol Correia</strong><small>Sócia na SelectCar</small></div></div></article></div></div></section>
-
-      <section className="section faq-section"><div className="container faq-layout"><div><span className="eyebrow">TIRE SUAS DÚVIDAS</span><h2>Perguntas que abrem caminhos.</h2><p>Saiba como funciona o Conectando Ideias Brasil antes de dar o próximo passo.</p><div className="faq-decoration">✳</div></div><div className="faq-list">{faq.map((x,i)=><div className={`faq-item ${faqOpen===i?'expanded':''}`} key={x.q}><button aria-expanded={faqOpen===i} onClick={()=>setFaqOpen(faqOpen===i?null:i)}><span>{x.q}</span><ChevronDown size={20}/></button>{faqOpen===i&&<p>{x.a}</p>}</div>)}</div></div></section>
-
-      <section id="participar" className="section join-section"><div className="container join-grid"><div className="join-copy"><span className="eyebrow light">SEU PRÓXIMO PASSO</span><h2>A próxima boa conexão pode começar aqui.</h2><p>Quer estar perto de pessoas que compartilham ideias, experiências e possibilidades? Conte um pouco sobre você e sua empresa.</p><div className="join-price"><span className="join-price-icon"><Wallet size={23}/></span><div><small>Contribuição mensal de referência</small><strong>{brl(amount)} <em>/ mês</em></strong></div></div><div className="join-reassure"><ShieldCheck size={19}/> Entrada sujeita à aprovação da comissão.</div></div><div className="join-form-card"><div className="join-form-heading"><div><h3>Quero fazer parte</h3><p>Deixe seus dados e vamos nos conectar.</p></div><span><ArrowUpRight size={25}/></span></div>{formStatus==='sent'?<div className="form-success"><CircleCheck size={52}/><h3>Recebemos seu interesse!</h3><p>A comissão do Conectando Ideias Brasil vai analisar suas informações. Obrigado por querer construir essa história com a gente.</p></div>:<form onSubmit={submit}><div className="field-grid"><label>Seu nome<input required maxLength={120} autoComplete="name" placeholder="Como podemos chamar você?" value={form.name} onChange={e=>setForm({...form,name:e.target.value})}/></label><label>Seu WhatsApp<input required maxLength={40} placeholder="(47) 99999-9999" value={form.phone} onChange={e=>setForm({...form,phone:e.target.value})}/></label></div><label>E-mail<input required type="email" maxLength={160} autoComplete="email" placeholder="voce@empresa.com.br" value={form.email} onChange={e=>setForm({...form,email:e.target.value})}/></label><label>Nome da empresa<input required maxLength={120} placeholder="Sua empresa ou atividade" value={form.company} onChange={e=>setForm({...form,company:e.target.value})}/></label><label>Uma mensagem (opcional)<textarea maxLength={1000} rows={3} placeholder="O que você gostaria de compartilhar?" value={form.message} onChange={e=>setForm({...form,message:e.target.value})}/></label><div className="spam-field" aria-hidden="true"><input tabIndex={-1} name="website" autoComplete="off" value={form.website} onChange={e=>setForm({...form,website:e.target.value})}/></div><label className="checkline"><input type="checkbox" required checked={form.consent} onChange={e=>setForm({...form,consent:e.target.checked})}/><span>Concordo com o uso dos meus dados para contato sobre minha inscrição, conforme a <Link to="/privacidade">política de privacidade</Link>.</span></label>{error&&<p className="error-text" role="alert">{error}</p>}<button className="button button-lime join-submit" disabled={formStatus==='sending'}>{formStatus==='sending'?'Enviando...':'Enviar meu interesse'} <ArrowRight size={19}/></button></form>}</div></div></section>
-    </main><footer className="site-footer"><div className="container"><div className="footer-top"><div><Brand light/><p>Conexões que aproximam pessoas, fortalecem negócios e transformam ideias em possibilidades.</p></div><div className="footer-links"><div><strong>Explore</strong><a href="#proposito">Nossa história</a><a href="#como-funciona">Como funciona</a><a href="#participar">Faça parte</a></div><div><strong>Acesse</strong><Link to="/entrar">Área do associado</Link><Link to="/privacidade">Privacidade</Link><a href="https://www.google.com/maps/search/?api=1&query=Casar%C3%A3o+dos+Sonhos+Blumenau" target="_blank" rel="noreferrer">Nossa localização</a></div></div></div><div className="footer-bottom"><span>© {new Date().getFullYear()} Conectando Ideias Brasil. Feito para conectar.</span><span><Facebook size={16}/> Blumenau, Santa Catarina <span className="footer-heart">♥</span></span></div></div></footer>
-  </div>;
+  const [page,setPage]=useState<CibPage>(whiteLabelDemoPage);
+  useEffect(()=>{
+    let active=true;
+    api<{page:CibPage|null}>('public-page').then(response=>{
+      if(active && response.page?.sections?.length)setPage(response.page);
+    }).catch(()=>{/* Public demo stays usable without provisioned D1. */});
+    return ()=>{active=false};
+  },[]);
+  useEffect(()=>{document.title=page.title||NPE_THEME.productName},[page.title]);
+  return <VisualSite page={page}/>;
 }
 
-export function Privacy(){return <div className="legal-page"><header className="legal-nav container"><Brand/><Link className="button button-outline" to="/">Voltar ao site</Link></header><main className="container legal-content"><span className="eyebrow">TRANSPARÊNCIA E RESPEITO</span><h1>Política de privacidade</h1><p>O Conectando Ideias Brasil utiliza os dados enviados nos formulários para analisar solicitações de participação, responder aos interessados e gerenciar o relacionamento com os integrantes do grupo.</p><h2>Quais dados são utilizados</h2><p>Nome, e-mail, telefone, empresa e as informações que você optar por compartilhar. Integrantes podem ter registros de participação, mensalidades, pagamentos informados e dados necessários à administração financeira.</p><h2>Quem pode acessar</h2><p>Os dados administrativos ficam restritos a usuários autorizados. Cada associado tem acesso apenas às próprias informações financeiras por meio de sua conta. Não divulgamos publicamente as informações financeiras individuais.</p><h2>Como solicitar uma alteração</h2><p>Entre em contato com a administração do grupo para solicitar acesso, correção ou exclusão de informações, observadas as obrigações legais de guarda. A administração deve complementar este texto com os canais de contato e a identificação formal do responsável antes do lançamento definitivo.</p><h2>Pagamentos</h2><p>Os códigos Pix são gerados para a chave configurada pela administração. A confirmação financeira é realizada pela tesouraria, após conferência bancária. Este site não armazena números de cartão.</p><p className="privacy-update">Versão inicial para homologação, novembro de 2026. Revisar com o responsável pelo tratamento de dados antes de ativar o sistema em produção.</p></main></div>}
+/** Starter notice, intentionally not a finished legal policy.
+ * Customers must replace this with a reviewed policy before collecting personal data.
+ */
+export function Privacy(){
+ return <div className="npe-privacy">
+   <header><Link to="/"><img src={NPE_THEME.logo} alt="Editora NPE"/><span>Voltar ao site</span></Link></header>
+   <main>
+     <small>MODELO PERSONALIZÁVEL</small>
+     <h1>Privacidade e tratamento de dados</h1>
+     <p>Este texto é um <strong>marcador de conteúdo</strong>, destinado apenas à demonstração comercial da plataforma.</p>
+     <p>Antes de receber dados reais, a empresa responsável deverá informar sua razão social, o responsável pelos dados, as finalidades do tratamento, os canais de contato, prazos de retenção e demais informações exigidas pela legislação aplicável.</p>
+     <p>Substitua este aviso por sua própria política de privacidade revisada. A Editora NPE não é automaticamente controladora dos dados cadastrados pelas empresas clientes.</p>
+     <Link className="npe-privacy-back" to="/">Retornar à página inicial</Link>
+   </main>
+ </div>;
+}

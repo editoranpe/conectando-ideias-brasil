@@ -134,3 +134,19 @@ npm run check
 ```
 
 O comando roda build, checagem de TypeScript da API, testes Pix, esquema D1, recorrências, CSV e validação dos documentos do editor. O workflow `verify-cloudflare-deployment.yml` compara a resposta publicada em `/api/version` com a marca da versão 2, consulta `/api/public-page`, `/api/health` e `/api/setup-status`. Uma compilação aprovada no GitHub **não substitui** a confirmação no painel da Cloudflare para agendamentos e segredos.
+
+## Editor visual V3: estrutura livre e design plano
+
+Acesso: `/editar-site` (apenas administrador principal).
+
+- **Estrutura**: todos os blocos e widgets aparecem na árvore com opções visíveis de **Selecionar, Duplicar e Excluir**. Para reorganizar, use arrastar e soltar na estrutura ou na prévia. As setas permitem movimentar widgets sem arrastar.
+- **Adicionar**: modelos de seções `Em branco`, `Título e introdução`, `Grade de benefícios`, `Depoimentos com fotos`, `Imagem e texto`, `FAQ` e `Convite para participar`. A paleta também permite inserir widgets individuais na seção selecionada.
+- **Depoimentos com foto**: edite a citação, o nome e a profissão/empresa; envie uma foto WebP diretamente para o armazenamento do grupo e escolha 2, 3 ou 4 cartões por linha.
+- **Cards de ícones**: escolha entre 20 ícones predefinidos, com texto e título personalizados. Também existe o widget **Imagem e texto**, que permite posicionar a foto à esquerda ou à direita.
+- **Menus**: personalize o nome e complemento da marca, envie um logotipo e adicione/remova/reordene links para seções, páginas internas ou endereços externos HTTPS. Menus antigos são inicialmente derivados das seções; ao editá-los, a nova lista é armazenada no documento da página.
+- **Aparência**: fonte, cores, rodapé e hierarquia visual. O layout renovado tem cartões planos, sombras decorativas removidas, espaçamentos mais claros e prévias para desktop e celular.
+- **Desfazer e refazer**: recuperam alterações feitas nesta sessão. **Salvar** grava somente o rascunho, **Publicar** atualiza o site visível ao público. O histórico de publicações permanece acessível e permite restaurar versões.
+- Imagens do logotipo e dos depoimentos utilizam o mesmo fluxo seguro de upload WebP ao Cloudflare D1, sem colar URLs.
+- O conteúdo já publicado no D1 não é substituído automaticamente. Para migrar a seção de depoimentos antiga, use **Adicionar → Depoimentos com fotos** e remova o widget antigo após a conferência.
+
+O servidor valida os novos elementos e bloqueia esquemas `javascript:`, scripts, HTML arbitrário e ícones que não pertencem à lista permitida. O sistema mantém a restrição de publicação ao administrador.

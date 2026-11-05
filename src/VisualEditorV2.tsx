@@ -265,7 +265,7 @@ export default function VisualEditorV2(){
  if(loading)return <div className="page-loading">Preparando seu editor…</div>;
  return <div className="fl-builder" data-revision={revision}>
    <aside className="fl-panel">
-    <header className="fl-panel-top"><Link to="/painel" aria-label="Voltar ao painel"><ArrowLeft size={18}/></Link><div><strong>Editor do site</strong><small>Conectando Ideias Brasil</small></div><span className="fl-version">v{version}</span></header>
+    <header className="fl-panel-top"><Link to="/painel" aria-label="Voltar ao painel"><ArrowLeft size={18}/></Link><div><strong>Editor do site</strong><small>Editora NPE · Edição personalizável</small></div><span className="fl-version">v{version}</span></header>
     <div className="fl-tabs" role="tablist" aria-label="Ferramentas do editor">
      <button type="button" role="tab" aria-selected={tab==='structure'} className={tab==='structure'?'active':''} onClick={()=>setTab('structure')}><Layers size={17}/> Estrutura</button>
      <button type="button" role="tab" aria-selected={tab==='add'} className={tab==='add'?'active':''} onClick={()=>setTab('add')}><Plus size={17}/> Adicionar</button>
@@ -312,7 +312,7 @@ export default function VisualEditorV2(){
     </div>}
     {tab==='menus'&&<div className="fl-menu-editor">
       <h2>Identidade e navegação</h2><p className="fl-hint">Adicione links, altere os nomes e organize o menu sem editar código.</p>
-      <TextField label="Nome da marca" value={page.brandName||'Conectando Ideias'} change={x=>change(p=>({...p,brandName:x}))} maxLength={90}/>
+      <TextField label="Nome da marca" value={page.brandName||'Sua Empresa'} change={x=>change(p=>({...p,brandName:x}))} maxLength={90}/>
       <TextField label="Complemento da marca" value={page.brandSubtitle||'BRASIL'} change={x=>change(p=>({...p,brandSubtitle:x}))} maxLength={45}/>
       {media('Logotipo do grupo',page.logoImage||'',url=>change(p=>({...p,logoImage:url})))}
       <div className="fl-list-heading"><h2>Links do menu</h2><button type="button" onClick={()=>setMenus([...menus,{id:freshId(),label:'Novo link',href:'#'+page.sections[0].id}])} disabled={menus.length>=16}><Plus size={16}/> Novo link</button></div>
@@ -338,7 +338,7 @@ export default function VisualEditorV2(){
       <label className="fl-field"><span>Tipografia</span><select value={page.font} onChange={e=>change(p=>({...p,font:e.target.value as CibPage['font']}))}><option value="modern">Moderna</option><option value="sans">Sem serifa</option><option value="serif">Serifada</option></select></label>
       <label className="fl-field"><span>Cor do cabeçalho</span>{chooseColor(page.headerColor,x=>change(p=>({...p,headerColor:x})))}</label>
       <label className="fl-field"><span>Cor principal / destaque</span>{chooseColor(page.accentColor,x=>change(p=>({...p,accentColor:x})))}</label>
-      <TextField label="Texto do rodapé" value={page.footerText||'Conectando Ideias Brasil · Blumenau, SC'} change={x=>change(p=>({...p,footerText:x}))} maxLength={240}/>
+      <TextField label="Texto do rodapé" value={page.footerText||'Sua empresa · Todos os direitos reservados'} change={x=>change(p=>({...p,footerText:x}))} maxLength={240}/>
       <div className="fl-style-tip"><Check size={16}/> O editor utiliza bordas leves, espaços generosos e componentes sem sombras decorativas.</div>
     </div>}
     <div className="fl-inspector-divider"/>

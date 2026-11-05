@@ -17,7 +17,8 @@
     "test:builder": "node --experimental-strip-types --test tests/site-builder.test.ts",
     "test:auth": "node --experimental-strip-types --test tests/auth.test.ts",
     "test:media": "node --experimental-strip-types --test tests/media.test.ts",
-    "check:template": "npm run check && node ./scripts/check-isolation.mjs"
+    "check:template": "npm run check && npm run test:white-label && node ./scripts/check-isolation.mjs",
+    "test:white-label": "node --experimental-strip-types --test tests/white-label.test.ts"
   },
   "dependencies": {
     "lucide-react": "^0.468.0",

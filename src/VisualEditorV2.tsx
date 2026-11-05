@@ -339,6 +339,11 @@ export default function VisualEditorV2(){
       <label className="fl-field"><span>Cor do cabeçalho</span>{chooseColor(page.headerColor,x=>change(p=>({...p,headerColor:x})))}</label>
       <label className="fl-field"><span>Cor principal / destaque</span>{chooseColor(page.accentColor,x=>change(p=>({...p,accentColor:x})))}</label>
       <TextField label="Texto do rodapé" value={page.footerText||'Sua empresa · Todos os direitos reservados'} change={x=>change(p=>({...p,footerText:x}))} maxLength={240}/>
+      <div className="fl-inspector-divider"/>
+      <h2>Privacidade</h2>
+      <p className="fl-hint">Edite o texto da página de privacidade. Antes de usar dados reais, solicite revisão jurídica.</p>
+      <TextField label="Título da página de privacidade" value={page.privacyTitle||'Privacidade e tratamento de dados'} change={x=>change(p=>({...p,privacyTitle:x}))} maxLength={120}/>
+      <TextField label="Texto da política de privacidade" value={page.privacyText||''} change={x=>change(p=>({...p,privacyText:x}))} multiline maxLength={12000}/>
       <div className="fl-style-tip"><Check size={16}/> O editor utiliza bordas leves, espaços generosos e componentes sem sombras decorativas.</div>
     </div>}
     <div className="fl-inspector-divider"/>

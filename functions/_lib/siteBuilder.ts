@@ -4,6 +4,7 @@ export const WIDGET_TYPES = ['heading','text','image','button','features','quote
 export type BuilderWidget = {
   id: string; type: typeof WIDGET_TYPES[number]; title?: string; text?: string;
   image?: string; url?: string; label?: string; align?: string;
+  imageWidth?: number; imageHeight?: number; imageBytes?: number; imageMime?: string;
   fontSize?: number; color?: string; background?: string;
   items?: Array<{ title?: string; text?: string }>;
 };
@@ -40,6 +41,10 @@ export function validatePage(input: unknown): input is BuilderPage {
           !WIDGET_TYPES.includes(w.type) || !textLen(w.title,160) || !textLen(w.text,4000) ||
           !textLen(w.label,100) || !safeUrl(w.image) || !safeUrl(w.url) ||
           (w.color && !safeColor(w.color)) || (w.background && !safeColor(w.background)) ||
+          (w.imageWidth!==undefined && (!Number.isInteger(w.imageWidth) || w.imageWidth<1 || w.imageWidth>4096)) ||
+          (w.imageHeight!==undefined && (!Number.isInteger(w.imageHeight) || w.imageHeight<1 || w.imageHeight>4096)) ||
+          (w.imageBytes!==undefined && (!Number.isInteger(w.imageBytes) || w.imageBytes<1 || w.imageBytes>921600)) ||
+          (w.imageMime!==undefined && w.imageMime!=='image/webp') ||
           (w.fontSize!==undefined && (!Number.isInteger(w.fontSize) || w.fontSize<10 || w.fontSize>90)) ||
           (w.align && !['left','center','right'].includes(w.align)) ||
           (w.items && (!Array.isArray(w.items) || w.items.length>15 || w.items.some(x=>!x || !textLen(x.title,160) || !textLen(x.text,1200))))) return false;

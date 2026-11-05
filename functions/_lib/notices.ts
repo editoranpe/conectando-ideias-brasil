@@ -17,10 +17,17 @@ function template(row:NoticeRow,origin:string){
 export async function deliverScheduledNotices(env:NoticeEnv,origin:string):Promise<{sent:number;failed:number;skipped:number}>{
  const db=env.DB, pref=await db.prepare("SELECT value FROM settings WHERE key='billing_auto_notices'").first<{value:string}>();
  if(pref?.value!=='true')return {sent:0,failed:0,skipped:0};
+ const canEmail=!!(env.RESEND_API_KEY&&env.RESEND_FROM);
+ const canWhatsApp=!!(env.WHATSAPP_ACCESS_TOKEN&&env.WHATSAPP_PHONE_NUMBER_ID);
+ const eligible:string[]=[];
+ if(canEmail)eligible.push("(p.channels IN ('email','both') AND m.email<>'' AND NOT EXISTS (SELECT 1 FROM notice_logs e WHERE e.charge_id=c.id AND e.channel='email' AND e.status IN ('queued','sent')))");
+ if(canWhatsApp)eligible.push("(p.channels IN ('whatsapp','both') AND m.phone IS NOT NULL AND TRIM(m.phone)<>'' AND NOT EXISTS (SELECT 1 FROM notice_logs w WHERE w.charge_id=c.id AND w.channel='whatsapp' AND w.status IN ('queued','sent')))");
+ if(!eligible.length)return {sent:0,failed:0,skipped:0};
  const rows=(await db.prepare(`SELECT c.id,c.period,c.due_date,c.amount_cents,m.name,m.email,m.phone,p.channels
   FROM recurring_charge_links r JOIN charges c ON c.id=r.charge_id
   JOIN recurring_plans p ON p.id=r.plan_id JOIN members m ON m.id=c.member_id
-  WHERE c.status='pending' AND m.status='active' AND c.period<=? AND p.channels!='portal'
+  WHERE c.status='pending' AND m.status='active' AND c.period<=?
+    AND (${eligible.join(' OR ')})
   ORDER BY c.due_date,c.id LIMIT 400`).bind(currentMonthBR()).all<NoticeRow>()).results;
  let sent=0,failed=0,skipped=0;
  const checked=new Set<string>();

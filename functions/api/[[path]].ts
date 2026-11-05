@@ -154,7 +154,7 @@ async function handle(context: Context): Promise<Response> {
   }
   // Site media files are read-only for visitors; uploads require an admin session.
   // Images are immutable, cached on the edge and served without exposing D1 internals.
-  if(method==='GET' && path[0]==='media' && path.length===2){
+  if(method==='GET' && path[0]==='media' && path.length===2 && path[1].endsWith('.webp')){
     const match=/^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\.webp$/.exec(path[1]);
     if(!match)fail('Imagem não encontrada',404);
     const row=await db.prepare('SELECT data, mime_type FROM site_media_assets WHERE id=?').bind(match[1]).first<{data:number[];mime_type:string}>();

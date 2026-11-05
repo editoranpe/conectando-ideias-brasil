@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight, ArrowUpRight, Check, ChevronDown, CircleCheck, Coffee, Facebook, Globe2, Handshake, Heart, Lightbulb, MapPin, Menu, Mic2, ShieldCheck, Sparkles, Target, TrendingUp, Users, Wallet, X } from 'lucide-react';
+import { ArrowRight, ArrowUpRight, ChevronDown, CircleCheck, Coffee, Facebook, Globe2, Handshake, Heart, Lightbulb, MapPin, Menu, Mic2, ShieldCheck, Sparkles, Target, TrendingUp, Users, Wallet, X } from 'lucide-react';
 import { api, brl } from './api';
 
 const LOGO = 'https://editoranpe.com.br/wp-content/uploads/2025/12/Conectando-09-12-2025-1.png';

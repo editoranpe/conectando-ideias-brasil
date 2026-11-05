@@ -368,10 +368,10 @@ async function handle(context: Context): Promise<Response> {
     if(!Number.isInteger(repetitions)||repetitions<1||repetitions>36)fail('Informe entre 1 e 36 parcelas');
     if(!Number.isInteger(dueDay)||dueDay<1||dueDay>28)fail('Dia de vencimento entre 1 e 28');
     const members=Array.isArray(input.member_ids)?[...new Set(input.member_ids.filter((x:unknown):x is string=>typeof x==='string' && x.length<100))]:[];
-    if(members.length<1||members.length>500)fail('Selecione entre 1 e 500 associados');
+    if(members.length<1||members.length>500)fail('Selecione entre 1 e 500 cadastros');
     const active=(await db.prepare("SELECT id FROM members WHERE status='active'").all<{id:string}>()).results;
     const approved=new Set(active.map(x=>x.id));
-    if(members.some(x=>!approved.has(x)))fail('Há associados inativos ou não encontrados na seleção');
+    if(members.some(x=>!approved.has(x)))fail('Há usuários inativos ou não encontrados na seleção');
     const amount=input.amount_cents==null||input.amount_cents===''?null:cents(input.amount_cents);
     const channels=['portal','email','whatsapp','both'].includes(input.channels)?input.channels:'portal';
     const id=uuid(),now=NOW();
@@ -463,7 +463,7 @@ async function handle(context: Context): Promise<Response> {
   if (is('POST','members','import')) {
     if(user.role!=='admin')fail('Acesso restrito à administração',403);
     const input=await body(request,150_000);
-    if(!Array.isArray(input.rows)||input.rows.length<1||input.rows.length>100)fail('Envie lotes de até 100 associados');
+    if(!Array.isArray(input.rows)||input.rows.length<1||input.rows.length>100)fail('Envie lotes de até 100 pessoas');
     const existing=(await db.prepare('SELECT email FROM members').all<{email:string}>()).results;
     const seen=new Set(existing.map(x=>x.email.toLowerCase()));
     const statements:Query[]=[];

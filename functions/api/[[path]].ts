@@ -3,6 +3,7 @@ import { INITIAL_SCHEMA_STATEMENTS } from '../_lib/schema';
 import { ensureExtensionSchema } from '../_lib/extensions';
 import { runDuePlans, plannedMonths } from '../_lib/recurring';
 import { validatePage } from '../_lib/siteBuilder';
+import { readImageUpload, inspectWebp, mediaUrl } from '../_lib/media';
 import { NOW, uuid, sha256, randomToken, passwordHash, verifyPassword, readSessionCookie, sessionCookie, expireCookie } from '../_lib/auth';
 
 type Role = 'admin' | 'finance' | 'member';
@@ -151,6 +152,19 @@ async function handle(context: Context): Promise<Response> {
     const s = await getSettings(db);
     return json({ group_name: s.group_name, monthly_amount_cents: Number(s.monthly_amount_cents), due_day: Number(s.due_day), meeting_place: s.meeting_place, contact_email: s.contact_email, contact_whatsapp: s.contact_whatsapp, pix_available: !!(s.pix_key && s.pix_receiver) });
   }
+  // Site media files are read-only for visitors; uploads require an admin session.
+  // Images are immutable, cached on the edge and served without exposing D1 internals.
+  if(method==='GET' && path[0]==='media' && path.length===2){
+    const match=/^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\.webp$/.exec(path[1]);
+    if(!match)fail('Imagem não encontrada',404);
+    const row=await db.prepare('SELECT data, mime_type FROM site_media_assets WHERE id=?').bind(match[1]).first<{data:number[];mime_type:string}>();
+    if(!row)fail('Imagem não encontrada',404);
+    const bytes=Uint8Array.from(row.data);
+    return new Response(bytes.buffer as ArrayBuffer,{headers:{
+      'Content-Type':'image/webp','Cache-Control':'public, max-age=31536000, immutable',
+      'X-Content-Type-Options':'nosniff','Cross-Origin-Resource-Policy':'same-origin'
+    }});
+  }
   if (is('GET', 'public-page')) {
     const row = await db.prepare("SELECT published_json,published_version FROM site_pages WHERE slug='home'").first<{published_json:string|null;published_version:number}>();
     return json({ page: row?.published_json ? JSON.parse(row.published_json) : null, version: row?.published_version||0 });
@@ -256,6 +270,34 @@ async function handle(context: Context): Promise<Response> {
   // Rotas autenticadas a partir deste ponto.
   const user = await account(context);
   const isManager = user.role === 'admin' || user.role === 'finance';
+
+  // Upload only WebP, restricted to the authenticated principal administrator.
+  // A built-in image library avoids depending on third-party image URLs.
+  if (is('POST','media','upload')) {
+    if(user.role!=='admin')fail('Somente o administrador principal pode enviar imagens',403);
+    const count=await db.prepare('SELECT COUNT(*) AS total FROM site_media_assets').first<{total:number}>();
+    if((count?.total||0)>=400)fail('Biblioteca atingiu 400 imagens. Solicite migração para R2 antes de novos uploads.',409);
+    let image:Uint8Array,dimensions:{width:number;height:number};
+    try{image=await readImageUpload(request);dimensions=inspectWebp(image)}
+    catch(error){
+      const message=String((error as Error)?.message||'Arquivo inválido');
+      fail(message,/900 KB/.test(message)?413:400);
+    }
+    const rawFilename=request.headers.get('X-CIB-Filename')||'imagem.webp';
+    let filename='imagem.webp';
+    try{filename=decodeURIComponent(rawFilename).replace(/[^\p{L}\p{N}._ -]/gu,'').slice(0,120)||'imagem.webp';}
+    catch{filename='imagem.webp'}
+    const id=uuid(),now=NOW();
+    await db.prepare('INSERT INTO site_media_assets(id,filename,mime_type,width,height,size_bytes,data,created_at,uploaded_by) VALUES(?,?,?,?,?,?,?,?,?)')
+      .bind(id,filename,'image/webp',dimensions.width,dimensions.height,image.byteLength,image,now,user.id).run();
+    await audit(db,user,'upload_site_media','site_media',id,{size:image.byteLength,width:dimensions.width,height:dimensions.height});
+    return json({id,url:mediaUrl(id),mime:'image/webp',width:dimensions.width,height:dimensions.height,bytes:image.byteLength,filename},201);
+  }
+  if (is('GET','media','library')) {
+    if(user.role!=='admin')fail('Biblioteca restrita ao administrador',403);
+    const rows=(await db.prepare('SELECT id,filename,width,height,size_bytes,created_at FROM site_media_assets ORDER BY created_at DESC LIMIT 100').all<{id:string;filename:string;width:number;height:number;size_bytes:number;created_at:string}>()).results;
+    return json({images:rows.map(x=>({id:x.id,url:mediaUrl(x.id),name:x.filename,width:x.width,height:x.height,bytes:x.size_bytes,created_at:x.created_at}))});
+  }
 
   // Editor visual: apenas o administrador tem autorização para rascunhar e publicar.
   if (is('POST','pix','test')) {

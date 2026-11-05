@@ -9,7 +9,7 @@
 - Editor visual em `/editar-site`: seções, widgets, ícones, depoimentos, imagens WebP, textos, menus, fontes, cores e histórico de versões.
 - Área protegida em `/painel`, com cadastros, acesso administrativo, financeiro, cobranças Pix, recorrências, importação e exportação em CSV.
 - Exemplo sem nomes ou depoimentos reais de clientes. As imagens SVG são ilustrativas, devem ser substituídas na implantação final.
-- A identidade Editora NPE é o **tema de apresentação**, não uma marca fixa do produto. O administrador troca logotipo, nome, cores, menus, conteúdo, imagens e dados de cobrança.
+- A identidade Editora NPE é o **tema de apresentação**, não uma marca fixa do produto. O administrador troca logotipo, nome, cores, menus, conteúdo, imagens e dados de cobrança, além das cores e do nome exibidos no próprio painel administrativo.
 - Logotipo exibido no código é uma **assinatura SVG demonstrativa**, criada com base na paleta e no conceito da marca. A imagem oficial enviada pelo proprietário deve ser carregada no editor antes da apresentação final.
 
 ## Instruções para usar em um novo cliente
@@ -23,8 +23,8 @@
 5. Configure `SETUP_TOKEN` como **Secret** no Worker, com pelo menos 24 caracteres gerados aleatoriamente. Nunca coloque segredos no GitHub. Após criar o administrador, retire o token.
 6. Configure o Build Command `npm run build` e a saída `dist` na Cloudflare, mantendo o Worker `src/worker.ts` e a binding D1 denominada `DB`. Se usar Wrangler CLI, execute `npm run deploy` após preencher o arquivo.
 7. Acesse `/entrar` e crie o primeiro administrador. No painel, preencha **Configurações** com os dados da empresa e os dados bancários reais somente quando apropriado.
-8. Acesse **Editor visual** (`/editar-site`). Em **Menus**, mude logotipo e nome da marca. Em **Aparência**, escolha a fonte e as cores. Em **Estrutura/Adicionar**, substitua os textos e as imagens demonstrativas. **Salvar** é rascunho; **Publicar** atualiza o site público.
-9. Substitua o conteúdo demonstrativo da página `/privacidade` pela política aprovada da empresa antes de utilizar formulários reais. O texto incluído é um marcador, não uma política pronta para uso.
+8. Acesse **Editor visual** (`/editar-site`). Em **Menus**, mude logotipo e nome da marca. Em **Aparência**, escolha a fonte, as cores, o rodapé e o texto da página de privacidade. Em **Estrutura/Adicionar**, substitua os textos e as imagens demonstrativas. **Salvar** é rascunho; **Publicar** atualiza o site público.
+9. No editor, em **Aparência → Privacidade**, substitua o texto demonstrativo da página `/privacidade` pela política aprovada da empresa antes de utilizar formulários reais. O texto incluído é um marcador, não uma política pronta para uso.
 10. Teste as permissões, upload, cadastro, backup, Pix e envio de e-mail com dados de teste. **Nunca** insira CPF, chave Pix, telefone ou dados reais da empresa no Git.
 11. Para novo cliente, repita os passos com outro repositório/Worker/D1. A aplicação **não é multi-inquilino compartilhado**: o isolamento é por instalação. Isso reduz risco de vazamento entre clientes.
 
@@ -33,6 +33,8 @@
 | Área | O que pode editar |
 |---|---|
 | Identidade | Logotipo, nome, slogan no cabeçalho, cores principais, fonte e rodapé |
+| Portal | Nome da empresa e cores próprias do painel em **Configurações** |
+| Privacidade | Título e texto da política, editáveis em **Aparência**, publicados junto com o site |
 | Navegação | Adicionar, remover e ordenar itens; links internos e externos |
 | Conteúdo | Seções inteiras, colunas, espaçamento, títulos, imagens, textos e botões |
 | Componentes | Grade de ícones, cards, foto com texto, depoimentos, perguntas e formulário |

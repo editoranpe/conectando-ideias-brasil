@@ -1,10 +1,10 @@
 import { buildPixCode } from '../_lib/pix';
-import { INITIAL_SCHEMA_SQL } from '../_lib/schema';
+import { INITIAL_SCHEMA_STATEMENTS } from '../_lib/schema';
 import { NOW, uuid, sha256, randomToken, passwordHash, verifyPassword, readSessionCookie, sessionCookie, expireCookie } from '../_lib/auth';
 
 type Role = 'admin' | 'finance' | 'member';
 type Query = { bind: (...values: unknown[]) => Query; first: <T = any>() => Promise<T | null>; all: <T = any>() => Promise<{results: T[]}>; run: () => Promise<{meta: {changes?: number}}> };
-type DB = { prepare: (sql: string) => Query; batch: (queries: Query[]) => Promise<unknown>; exec: (sql: string) => Promise<unknown> };
+type DB = { prepare: (sql: string) => Query; batch: (queries: Query[]) => Promise<unknown> };
 type Env = { DB: DB; SETUP_TOKEN?: string };
 type Context = { request: Request; env: Env };
 type User = { id: string; email: string; role: Role; member_id: string | null };
@@ -123,7 +123,9 @@ async function initializeEmptyDatabase(db: DB): Promise<void> {
     "SELECT COUNT(*) AS total FROM sqlite_master WHERE type='table' AND name IN ('users','members','sessions','login_attempts','invitations','settings','applications','charges','payment_reports','transactions','audit_logs')"
   ).first<{ total: number }>();
   if (Number(found?.total || 0) === 0) {
-    await db.exec(INITIAL_SCHEMA_SQL);
+    // D1.exec splits SQL on newlines, which breaks multi-line CREATE TABLE statements.
+    // D1.batch executes prepared statements transactionally instead.
+    await db.batch(INITIAL_SCHEMA_STATEMENTS.map(statement => db.prepare(statement)));
   }
 }
 

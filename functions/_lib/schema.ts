@@ -1,132 +1,21 @@
-/** Idempotent initial SQL schema for an empty Cloudflare D1 database. No secrets. */
-export const INITIAL_SCHEMA_SQL = String.raw`-- Conectando Ideias Brasil | Cloudflare D1 | migração inicial
-CREATE TABLE IF NOT EXISTS users (
-  id TEXT PRIMARY KEY,
-  email TEXT NOT NULL COLLATE NOCASE UNIQUE,
-  password_salt TEXT NOT NULL,
-  password_hash TEXT NOT NULL,
-  role TEXT NOT NULL CHECK (role IN ('admin', 'finance', 'member')),
-  member_id TEXT UNIQUE,
-  created_at TEXT NOT NULL,
-  updated_at TEXT NOT NULL,
-  FOREIGN KEY(member_id) REFERENCES members(id) ON DELETE SET NULL
-);
-
-CREATE TABLE IF NOT EXISTS members (
-  id TEXT PRIMARY KEY,
-  name TEXT NOT NULL,
-  email TEXT NOT NULL COLLATE NOCASE UNIQUE,
-  phone TEXT,
-  company TEXT,
-  segment TEXT,
-  city TEXT,
-  notes TEXT,
-  status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active','inactive','pending')),
-  monthly_fee_cents INTEGER CHECK(monthly_fee_cents IS NULL OR monthly_fee_cents >= 0),
-  joined_at TEXT NOT NULL,
-  created_at TEXT NOT NULL,
-  updated_at TEXT NOT NULL
-);
-
-CREATE TABLE IF NOT EXISTS sessions (
-  token_hash TEXT PRIMARY KEY,
-  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  expires_at TEXT NOT NULL,
-  created_at TEXT NOT NULL
-);
-CREATE INDEX IF NOT EXISTS sessions_expiry ON sessions(expires_at);
-
-CREATE TABLE IF NOT EXISTS login_attempts (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  key_hash TEXT NOT NULL,
-  attempted_at TEXT NOT NULL
-);
-CREATE INDEX IF NOT EXISTS login_attempts_key ON login_attempts(key_hash,attempted_at);
-
-CREATE TABLE IF NOT EXISTS invitations (
-  id TEXT PRIMARY KEY,
-  member_id TEXT NOT NULL REFERENCES members(id) ON DELETE CASCADE,
-  token_hash TEXT NOT NULL UNIQUE,
-  expires_at TEXT NOT NULL,
-  used_at TEXT,
-  created_by TEXT REFERENCES users(id),
-  created_at TEXT NOT NULL
-);
-
-CREATE TABLE IF NOT EXISTS settings (
-  key TEXT PRIMARY KEY,
-  value TEXT NOT NULL,
-  updated_at TEXT NOT NULL
-);
-
-CREATE TABLE IF NOT EXISTS applications (
-  id TEXT PRIMARY KEY,
-  name TEXT NOT NULL,
-  email TEXT NOT NULL,
-  phone TEXT NOT NULL,
-  company TEXT NOT NULL,
-  message TEXT,
-  status TEXT NOT NULL DEFAULT 'new' CHECK(status IN ('new','approved','rejected')),
-  consented_at TEXT NOT NULL,
-  created_at TEXT NOT NULL,
-  reviewed_by TEXT REFERENCES users(id),
-  reviewed_at TEXT
-);
-
-CREATE TABLE IF NOT EXISTS charges (
-  id TEXT PRIMARY KEY,
-  member_id TEXT NOT NULL REFERENCES members(id) ON DELETE RESTRICT,
-  period TEXT NOT NULL,
-  due_date TEXT NOT NULL,
-  amount_cents INTEGER NOT NULL CHECK(amount_cents > 0),
-  status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending','paid','canceled')),
-  paid_at TEXT,
-  paid_by TEXT REFERENCES users(id),
-  payment_method TEXT,
-  payment_reference TEXT,
-  notes TEXT,
-  created_at TEXT NOT NULL,
-  updated_at TEXT NOT NULL,
-  UNIQUE(member_id, period)
-);
-CREATE INDEX IF NOT EXISTS charges_period_status ON charges(period,status);
-CREATE INDEX IF NOT EXISTS charges_member ON charges(member_id,due_date);
-
-CREATE TABLE IF NOT EXISTS payment_reports (
-  id TEXT PRIMARY KEY,
-  charge_id TEXT NOT NULL UNIQUE REFERENCES charges(id) ON DELETE CASCADE,
-  member_id TEXT NOT NULL REFERENCES members(id),
-  reported_paid_on TEXT NOT NULL,
-  reference TEXT,
-  note TEXT,
-  status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending','reviewed','rejected')),
-  created_at TEXT NOT NULL,
-  reviewed_at TEXT,
-  reviewed_by TEXT REFERENCES users(id)
-);
-
-CREATE TABLE IF NOT EXISTS transactions (
-  id TEXT PRIMARY KEY,
-  kind TEXT NOT NULL CHECK(kind IN ('income','expense')),
-  amount_cents INTEGER NOT NULL CHECK(amount_cents > 0),
-  category TEXT NOT NULL,
-  description TEXT NOT NULL,
-  party TEXT,
-  occurred_on TEXT NOT NULL,
-  payment_method TEXT,
-  reference TEXT,
-  created_at TEXT NOT NULL,
-  created_by TEXT REFERENCES users(id)
-);
-CREATE INDEX IF NOT EXISTS transactions_date_kind ON transactions(occurred_on, kind);
-
-CREATE TABLE IF NOT EXISTS audit_logs (
-  id TEXT PRIMARY KEY,
-  actor_id TEXT REFERENCES users(id),
-  action TEXT NOT NULL,
-  entity_type TEXT NOT NULL,
-  entity_id TEXT NOT NULL,
-  details TEXT,
-  created_at TEXT NOT NULL
-);
-CREATE INDEX IF NOT EXISTS audit_recent ON audit_logs(created_at DESC);`;
+/** Initial, non-destructive D1 schema; each statement is prepared separately. */
+export const INITIAL_SCHEMA_STATEMENTS = [
+  "CREATE TABLE IF NOT EXISTS users (\n  id TEXT PRIMARY KEY,\n  email TEXT NOT NULL COLLATE NOCASE UNIQUE,\n  password_salt TEXT NOT NULL,\n  password_hash TEXT NOT NULL,\n  role TEXT NOT NULL CHECK (role IN ('admin', 'finance', 'member')),\n  member_id TEXT UNIQUE,\n  created_at TEXT NOT NULL,\n  updated_at TEXT NOT NULL,\n  FOREIGN KEY(member_id) REFERENCES members(id) ON DELETE SET NULL\n)",
+  "CREATE TABLE IF NOT EXISTS members (\n  id TEXT PRIMARY KEY,\n  name TEXT NOT NULL,\n  email TEXT NOT NULL COLLATE NOCASE UNIQUE,\n  phone TEXT,\n  company TEXT,\n  segment TEXT,\n  city TEXT,\n  notes TEXT,\n  status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active','inactive','pending')),\n  monthly_fee_cents INTEGER CHECK(monthly_fee_cents IS NULL OR monthly_fee_cents >= 0),\n  joined_at TEXT NOT NULL,\n  created_at TEXT NOT NULL,\n  updated_at TEXT NOT NULL\n)",
+  "CREATE TABLE IF NOT EXISTS sessions (\n  token_hash TEXT PRIMARY KEY,\n  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,\n  expires_at TEXT NOT NULL,\n  created_at TEXT NOT NULL\n)",
+  "CREATE INDEX IF NOT EXISTS sessions_expiry ON sessions(expires_at)",
+  "CREATE TABLE IF NOT EXISTS login_attempts (\n  id INTEGER PRIMARY KEY AUTOINCREMENT,\n  key_hash TEXT NOT NULL,\n  attempted_at TEXT NOT NULL\n)",
+  "CREATE INDEX IF NOT EXISTS login_attempts_key ON login_attempts(key_hash,attempted_at)",
+  "CREATE TABLE IF NOT EXISTS invitations (\n  id TEXT PRIMARY KEY,\n  member_id TEXT NOT NULL REFERENCES members(id) ON DELETE CASCADE,\n  token_hash TEXT NOT NULL UNIQUE,\n  expires_at TEXT NOT NULL,\n  used_at TEXT,\n  created_by TEXT REFERENCES users(id),\n  created_at TEXT NOT NULL\n)",
+  "CREATE TABLE IF NOT EXISTS settings (\n  key TEXT PRIMARY KEY,\n  value TEXT NOT NULL,\n  updated_at TEXT NOT NULL\n)",
+  "CREATE TABLE IF NOT EXISTS applications (\n  id TEXT PRIMARY KEY,\n  name TEXT NOT NULL,\n  email TEXT NOT NULL,\n  phone TEXT NOT NULL,\n  company TEXT NOT NULL,\n  message TEXT,\n  status TEXT NOT NULL DEFAULT 'new' CHECK(status IN ('new','approved','rejected')),\n  consented_at TEXT NOT NULL,\n  created_at TEXT NOT NULL,\n  reviewed_by TEXT REFERENCES users(id),\n  reviewed_at TEXT\n)",
+  "CREATE TABLE IF NOT EXISTS charges (\n  id TEXT PRIMARY KEY,\n  member_id TEXT NOT NULL REFERENCES members(id) ON DELETE RESTRICT,\n  period TEXT NOT NULL,\n  due_date TEXT NOT NULL,\n  amount_cents INTEGER NOT NULL CHECK(amount_cents > 0),\n  status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending','paid','canceled')),\n  paid_at TEXT,\n  paid_by TEXT REFERENCES users(id),\n  payment_method TEXT,\n  payment_reference TEXT,\n  notes TEXT,\n  created_at TEXT NOT NULL,\n  updated_at TEXT NOT NULL,\n  UNIQUE(member_id, period)\n)",
+  "CREATE INDEX IF NOT EXISTS charges_period_status ON charges(period,status)",
+  "CREATE INDEX IF NOT EXISTS charges_member ON charges(member_id,due_date)",
+  "CREATE TABLE IF NOT EXISTS payment_reports (\n  id TEXT PRIMARY KEY,\n  charge_id TEXT NOT NULL UNIQUE REFERENCES charges(id) ON DELETE CASCADE,\n  member_id TEXT NOT NULL REFERENCES members(id),\n  reported_paid_on TEXT NOT NULL,\n  reference TEXT,\n  note TEXT,\n  status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending','reviewed','rejected')),\n  created_at TEXT NOT NULL,\n  reviewed_at TEXT,\n  reviewed_by TEXT REFERENCES users(id)\n)",
+  "CREATE TABLE IF NOT EXISTS transactions (\n  id TEXT PRIMARY KEY,\n  kind TEXT NOT NULL CHECK(kind IN ('income','expense')),\n  amount_cents INTEGER NOT NULL CHECK(amount_cents > 0),\n  category TEXT NOT NULL,\n  description TEXT NOT NULL,\n  party TEXT,\n  occurred_on TEXT NOT NULL,\n  payment_method TEXT,\n  reference TEXT,\n  created_at TEXT NOT NULL,\n  created_by TEXT REFERENCES users(id)\n)",
+  "CREATE INDEX IF NOT EXISTS transactions_date_kind ON transactions(occurred_on, kind)",
+  "CREATE TABLE IF NOT EXISTS audit_logs (\n  id TEXT PRIMARY KEY,\n  actor_id TEXT REFERENCES users(id),\n  action TEXT NOT NULL,\n  entity_type TEXT NOT NULL,\n  entity_id TEXT NOT NULL,\n  details TEXT,\n  created_at TEXT NOT NULL\n)",
+  "CREATE INDEX IF NOT EXISTS audit_recent ON audit_logs(created_at DESC)"
+] as const;
+export const INITIAL_SCHEMA_SQL = INITIAL_SCHEMA_STATEMENTS.join(';\n') + ';';

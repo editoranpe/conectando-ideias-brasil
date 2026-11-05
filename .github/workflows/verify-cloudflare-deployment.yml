@@ -1,0 +1,36 @@
+name: Verify Cloudflare Worker deployment
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check that the site and API become available
+        shell: bash
+        env:
+          SITE_URL: https://conectando-ideias-brasil.jeferson-samagaia.workers.dev
+        run: |
+          set -uo pipefail
+          echo "Verifying Cloudflare deployment at ${SITE_URL}"
+          for attempt in $(seq 1 20); do
+            site_status=$(curl --location --silent --show-error --output /tmp/cib-site.html --write-out '%{http_code}' --max-time 20 "${SITE_URL}/" || true)
+            version_status=$(curl --location --silent --show-error --output /tmp/cib-version.json --write-out '%{http_code}' --max-time 20 "${SITE_URL}/api/version" || true)
+            echo "Attempt ${attempt}/20: homepage HTTP ${site_status}, version endpoint HTTP ${version_status}"
+            if [[ "${site_status}" == "200" && "${version_status}" == "200" ]] && grep -q 'cloudflare-worker' /tmp/cib-version.json; then
+              echo "Cloudflare Worker is responding."
+              echo "Site: ${SITE_URL}/"
+              echo "API: ${SITE_URL}/api/version"
+              cat /tmp/cib-version.json
+              exit 0
+            fi
+            sleep 15
+          done
+          echo "::error::Worker was not serving the expected site and API. Check Workers & Pages → Deployments/Builds and Settings → Builds in Cloudflare."
+          exit 1

@@ -3,6 +3,8 @@
  * Pages-style API handlers are mounted under /api/*.
  */
 import { onRequest as apiHandler } from '../functions/api/[[path]]';
+import { ensureExtensionSchema } from '../functions/_lib/extensions';
+import { runDuePlans } from '../functions/_lib/recurring';
 
 type WorkerEnv = {
   ASSETS: { fetch(request: Request): Promise<Response> };
@@ -29,5 +31,11 @@ export default {
       return apiHandler({ request, env } as Parameters<typeof apiHandler>[0]);
     }
     return env.ASSETS.fetch(request);
+  },
+  async scheduled(_event: unknown, env: WorkerEnv): Promise<void> {
+    if(!env.DB?.prepare) throw new Error('D1 binding DB não conectado');
+    await ensureExtensionSchema(env.DB);
+    const result = await runDuePlans(env.DB);
+    console.log('CIB_RECURRENCE_RUN', result);
   },
 };

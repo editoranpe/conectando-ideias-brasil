@@ -2,20 +2,23 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight, Menu, X, GripVertical, PlusCircle } from 'lucide-react';
 import { api } from './api';
+import {IconTile, TestimonialGrid, IconGrid, ImageTextBlock} from './BuilderWidgets';
 
 export type CibWidget = {
-  id:string; type:'heading'|'text'|'image'|'button'|'features'|'quote'|'faq'|'signup'|'divider'|'spacer';
+  id:string; type:'heading'|'text'|'image'|'button'|'features'|'quote'|'faq'|'signup'|'divider'|'spacer'|'testimonials'|'iconGrid'|'imageText';
   title?:string; text?:string; image?:string; url?:string; label?:string;
   imageWidth?:number; imageHeight?:number; imageBytes?:number; imageMime?:string;
+  icon?:string; imagePosition?:'left'|'right'; columns?:number;
   color?:string; background?:string; align?:'left'|'center'|'right';fontSize?:number;
-  items?:Array<{title?:string;text?:string}>;
+  items?:Array<{title?:string;text?:string;role?:string;image?:string;icon?:string}>;
 };
 export type CibSection = {id:string;label:string;columns:number;background:string;color:string;padding:number;backgroundImage?:string;widgets:CibWidget[]};
-export type CibPage = {title:string;font:'sans'|'serif'|'modern';headerColor:string;accentColor:string;sections:CibSection[]};
+export type CibMenuItem = {id:string;label:string;href:string};
+export type CibPage = {title:string;font:'sans'|'serif'|'modern';headerColor:string;accentColor:string;sections:CibSection[];menuItems?:CibMenuItem[];logoImage?:string;brandName?:string;brandSubtitle?:string;footerText?:string};
 export const freshId = () => 'cib'+Math.random().toString(36).slice(2,11);
 export const widgetNames:Record<CibWidget['type'],string> = {
   heading:'Título',text:'Texto',image:'Imagem',button:'Botão',features:'Cards / Benefícios',
-  quote:'Depoimento',faq:'Perguntas frequentes',signup:'Formulário de adesão',divider:'Divisória',spacer:'Espaçador'
+  quote:'Frase de destaque',testimonials:'Depoimentos com foto',iconGrid:'Grade de ícones',imageText:'Imagem e texto',faq:'Perguntas frequentes',signup:'Formulário de adesão',divider:'Divisória',spacer:'Espaçador'
 };
 export function newWidget(type:CibWidget['type']):CibWidget{
   const base:CibWidget={id:freshId(),type,align:'left',fontSize:type==='heading'?42:17};
@@ -25,7 +28,10 @@ export function newWidget(type:CibWidget['type']):CibWidget{
   if(type==='button')return {...base,label:'Saiba mais',url:'#participar'};
   if(type==='features')return {...base,title:'Nossos diferenciais',items:[{title:'Conexões',text:'Crescemos juntos'},{title:'Conhecimento',text:'Aprendizado prático'},{title:'Negócios',text:'Oportunidades reais'}]};
   if(type==='faq')return {...base,title:'Perguntas frequentes',items:[{title:'Como faço parte?',text:'Preencha seu cadastro e aguarde o retorno da comissão.'}]};
-  if(type==='quote')return {...base,title:'Quem participa recomenda',text:'Depoimento de um associado.'};
+  if(type==='quote')return {...base,title:'Frase de destaque',text:'Uma ideia que merece destaque.'};
+  if(type==='testimonials')return {...base,title:'Quem participa recomenda',columns:3,items:[{title:'Nome do associado',role:'Profissão ou empresa',text:'Escreva um depoimento real e autorizado.',image:''}]};
+  if(type==='iconGrid')return {...base,title:'O que você ganha ao fazer parte',columns:3,items:[{title:'Conexões',text:'Networking que gera novas oportunidades.',icon:'users'},{title:'Conhecimento',text:'Aprendizado prático para crescer.',icon:'lightbulb'},{title:'Negócios',text:'Compartilhe projetos e construa parcerias.',icon:'handshake'}]};
+  if(type==='imageText')return {...base,title:'Compartilhando boas experiências',text:'Uma história do Conectando Ideias Brasil.',label:'NOSSO GRUPO',image:'',imagePosition:'left'};
   if(type==='signup')return {...base,title:'Faça parte do Conectando Ideias Brasil',text:'Preencha o formulário para manifestar seu interesse.'};
   return base;
 }
@@ -51,7 +57,7 @@ export const defaultCibPage:CibPage = {
       {id:'meet-copy',type:'text',text:'Encontros mensais, em geral na segunda terça-feira às 8h, no Auditório do Casarão dos Sonhos, em Blumenau. Um espaço para aprender, construir confiança e realizar negócios.',fontSize:24}
     ]},
     {id:'depoimentos',label:'Depoimentos',columns:1,background:'#ffffff',color:'#133d33',padding:80,widgets:[
-      {id:'quote-1',type:'quote',title:'Quem participa, recomenda',text:'Aqui construímos relações de confiança, compartilhamos experiências e abrimos portas para novas oportunidades.',align:'center'}
+      {id:'quote-1',type:'testimonials',title:'Quem participa recomenda',columns:3,items:[{title:'Associado do grupo',role:'Empreendedor',text:'Espaço reservado para um depoimento verdadeiro de um associado.',image:''}]}
     ]},
     {id:'perguntas',label:'Dúvidas frequentes',columns:1,background:'#f5f8f3',color:'#103b2e',padding:70,widgets:[
       {id:'faq-one',type:'faq',title:'Perguntas frequentes',items:[
@@ -90,7 +96,10 @@ export function CibWidgetView({widget:w,editing=false}:{widget:CibWidget;editing
  if(w.type==='text')return <div className="cib-widget-text" style={style}>{w.text}</div>;
  if(w.type==='image')return <CibImageWidget w={w}/>;
  if(w.type==='button')return <div style={style}><a className="cib-widget-button" href={editing?'#':w.url||'#participar'} onClick={editing?e=>e.preventDefault():undefined}>{w.label||'Saiba mais'} <ArrowRight size={17}/></a></div>;
- if(w.type==='features')return <div className="cib-widget-features" style={style}><h2>{w.title}</h2><div className="cib-feature-grid">{(w.items||[]).map((item,i)=><article key={i}><span className="cib-feature-icon">✳</span><h3>{item.title}</h3><p>{item.text}</p></article>)}</div></div>;
+ if(w.type==='features')return <div className="cib-widget-features" style={style}><h2>{w.title}</h2><div className="cib-feature-grid">{(w.items||[]).map((item,i)=><article key={i}><span className="cib-feature-icon"><IconTile name={item.icon||'sparkles'}/></span><h3>{item.title}</h3><p>{item.text}</p></article>)}</div></div>;
+ if(w.type==='iconGrid')return <IconGrid widget={w}/>;
+ if(w.type==='testimonials')return <TestimonialGrid widget={w}/>;
+ if(w.type==='imageText')return <ImageTextBlock widget={w}/>
  if(w.type==='quote')return <blockquote className="cib-widget-quote" style={style}><h2>{w.title}</h2><p>“{w.text}”</p></blockquote>;
  if(w.type==='faq')return <div className="cib-widget-faq" style={style}><h2>{w.title}</h2>{(w.items||[]).map((item,i)=><details key={i}><summary>{item.title}</summary><p>{item.text}</p></details>)}</div>;
  if(w.type==='signup')return editing?<div className="cib-signup cib-signup-mock"><h2>{w.title}</h2><p>{w.text}</p><div className="cib-signup-row"><input disabled placeholder="Nome completo"/><input disabled placeholder="E-mail"/></div><div className="cib-signup-row"><input disabled placeholder="WhatsApp"/><input disabled placeholder="Empresa"/></div><span>Formulário de adesão (interativo no site publicado)</span></div>:<Signup w={w}/>;
@@ -100,15 +109,15 @@ export function CibWidgetView({widget:w,editing=false}:{widget:CibWidget;editing
 export function VisualSite({page,editing=false,selected,select,dragStart,dropAt}:{page:CibPage;editing?:boolean;selected?:string|null;select?:(kind:'section'|'widget',id:string)=>void;dragStart?:(section:string,widget:string)=>void;dropAt?:(section:string,widget:string)=>void}){
  const [menu,setMenu]=useState(false);
  return <div className={`cib-rendered-site cib-font-${page.font}`} style={{'--cib-header':page.headerColor,'--cib-accent':page.accentColor} as React.CSSProperties}>
-  <header className="cib-visual-header"><a href="/" className="cib-visual-logo"><img src="https://editoranpe.com.br/wp-content/uploads/2025/12/Conectando-09-12-2025-1.png" alt="" /> <strong>Conectando Ideias <span>Brasil</span></strong></a><button aria-label="Abrir menu" className="cib-menu-toggle" onClick={()=>setMenu(!menu)}>{menu?<X/>:<Menu/>}</button><nav className={menu?'open':''}>{page.sections.slice(0,5).map(s=><a key={s.id} href={`#${s.id}`}>{s.label}</a>)}{!editing&&<Link to="/entrar">Área do associado</Link>}</nav></header>
+  <header className="cib-visual-header"><a href="/" className="cib-visual-logo" onClick={editing?e=>e.preventDefault():undefined}>{page.logoImage?<img src={page.logoImage} alt="Logotipo do grupo" />:<span className="cib-simple-logo" aria-hidden="true">✳</span>} <strong>{page.brandName||'Conectando Ideias'} <span>{page.brandSubtitle||'BRASIL'}</span></strong></a><button type="button" aria-label={menu?'Fechar menu':'Abrir menu'} className="cib-menu-toggle" onClick={()=>setMenu(!menu)}>{menu?<X/>:<Menu/>}</button><nav className={menu?'open':''}>{(page.menuItems?.length?page.menuItems:page.sections.slice(0,5).map(s=>({id:s.id,label:s.label,href:`#${s.id}` }))).map(link=><a key={link.id} href={editing?'#':link.href} onClick={editing?e=>e.preventDefault():()=>setMenu(false)}>{link.label}</a>)}{!editing&&<Link to="/entrar">Área do associado</Link>}</nav></header>
   <main>{page.sections.map(section=><section key={section.id} id={section.id} className={`cib-visual-section ${editing&&selected===section.id?'cib-selected':''}`} style={{background:section.background,color:section.color,padding:`${section.padding}px 22px`,backgroundImage:section.backgroundImage?`linear-gradient(#0005,#0005),url("${section.backgroundImage}")`:undefined,backgroundPosition:'center',backgroundSize:'cover'}}>
-   {editing&&<button className="cib-section-handle" onClick={()=>select?.('section',section.id)}><PlusCircle size={14}/> {section.label} · Editar seção</button>}
+   {editing&&<button className="cib-section-handle" onClick={()=>select?.('section',section.id)}><PlusCircle size={14}/> Editar seção: {section.label}</button>}
    <div className="cib-visual-grid" style={{gridTemplateColumns:`repeat(${section.columns}, minmax(0, 1fr))`}}>
     {section.widgets.map(widget=><div key={widget.id} className={`cib-visual-widget ${editing?'cib-editable':''} ${selected===widget.id?'cib-selected':''}`} onClick={editing?e=>{e.stopPropagation();select?.('widget',widget.id)}:undefined} draggable={editing} onDragStart={editing?e=>{e.stopPropagation();dragStart?.(section.id,widget.id)}:undefined} onDragOver={editing?e=>e.preventDefault():undefined} onDrop={editing?e=>{e.preventDefault();e.stopPropagation();dropAt?.(section.id,widget.id)}:undefined}>
       {editing&&<span className="cib-widget-handle"><GripVertical size={13}/> {widgetNames[widget.type]}</span>}<CibWidgetView widget={widget} editing={editing}/>
     </div>)}
    </div>
   </section>)}</main>
-  <footer className="cib-visual-footer">© {new Date().getFullYear()} Conectando Ideias Brasil · Blumenau, SC <Link to="/privacidade">Privacidade</Link></footer>
+  <footer className="cib-visual-footer">© {new Date().getFullYear()} {page.footerText||'Conectando Ideias Brasil · Blumenau, SC'} <Link to="/privacidade">Privacidade</Link></footer>
  </div>;
 }

@@ -6,6 +6,7 @@ on:
     paths:
       - '.github/workflows/cloudflare-smoke-test.yml'
       - 'dist/index.html'
+      - 'wrangler.jsonc'
   workflow_dispatch:
 
 permissions:
@@ -15,21 +16,36 @@ jobs:
   verify:
     runs-on: ubuntu-latest
     steps:
-      - name: Verify homepage and API over HTTPS
+      - name: Verify site and D1 readiness (no secrets required)
         shell: bash
         run: |
-          set -u
+          set -euo pipefail
           SITE='https://conectando-ideias-brasil.jeferson-samagaia.workers.dev'
-          code=$(curl -L --silent --show-error --max-time 25 -o /tmp/cib-home.html -w '%{http_code}' "$SITE/" || true)
-          echo "Homepage HTTP: $code"
-          head -c 280 /tmp/cib-home.html 2>/dev/null || true
-          echo
-          if [ "$code" != '200' ] || ! grep -qi 'Conectando Ideias Brasil' /tmp/cib-home.html || ! grep -q 'id="root"' /tmp/cib-home.html; then
-            echo 'Homepage not yet serving the FULL React version of Conectando Ideias Brasil.'
+          homepage=$(curl -L --silent --show-error --max-time 20 -o /tmp/cib-home.html -w '%{http_code}' "$SITE/")
+          echo "Homepage HTTP: $homepage"
+          test "$homepage" = '200'
+          grep -qi 'Conectando Ideias Brasil' /tmp/cib-home.html
+          grep -q 'id="root"' /tmp/cib-home.html
+          echo 'Frontend React disponível.'
+          api_status=000
+          for attempt in $(seq 1 9); do
+            api_status=$(curl -L --silent --show-error --max-time 20 -o /tmp/cib-health.json -w '%{http_code}' "$SITE/api/health" || true)
+            echo "API health tentativa $attempt: HTTP $api_status"
+            cat /tmp/cib-health.json 2>/dev/null || true
+            echo
+            if [ "$api_status" = '200' ]; then break; fi
+            sleep 10
+          done
+          if [ "$api_status" != '200' ]; then
+            echo 'Binding DB ainda não está disponível no Worker. Verifique Workers & Pages > Bindings e o deploy do Cloudflare.'
             exit 1
           fi
-          health=$(curl -L --silent --show-error --max-time 25 -o /tmp/cib-health.json -w '%{http_code}' "$SITE/api/health" || true)
-          echo "API health HTTP: $health"
-          head -c 600 /tmp/cib-health.json 2>/dev/null || true
+          setup_status=$(curl -L --silent --show-error --max-time 20 -o /tmp/cib-setup.json -w '%{http_code}' "$SITE/api/setup-status" || true)
+          echo "API setup-status HTTP: $setup_status"
+          cat /tmp/cib-setup.json 2>/dev/null || true
           echo
-          echo 'Homepage online; HTTP 503 from /api/health means D1 binding is not configured yet.'
+          if [ "$setup_status" = '200' ]; then
+            echo 'D1 acessível e tabelas iniciais presentes.'
+          else
+            echo 'O D1 está conectado, mas é necessário executar migrations/0001_initial.sql no console D1 do Cloudflare.'
+          fi

@@ -99,7 +99,9 @@ O documento é armazenado no D1, em `site_pages` e `site_page_versions`. Apenas 
 - Colunas obrigatórias: `Nome`, `E-mail`. Opcionais: `Telefone`, `Empresa`, `Segmento`, `Cidade`, `Status`, `Mensalidade`, `Observações`.
 - O sistema mostra uma prévia, valida as linhas, envia lotes de até 100 registros, ignora e-mails já existentes e registra auditoria. Dados importados não são enviados ao repositório GitHub.
 - Exporte associados, cobranças e lançamentos financeiros em CSV pelos links do painel. Faça backup regular do próprio banco D1 na Cloudflare para garantir uma cópia completa, além dos relatórios CSV.
-- Para importar movimentações financeiras históricas, faça uma conferência do formato de sua planilha antes de qualquer lançamento ou baixa retroativa; **a importação de CSV desta versão cadastra associados**, não confirma pagamentos.
+- Na mesma tela, selecione **Associados**, **Mensalidades históricas** ou **Receitas adicionais e despesas**. Há prévia de dados e arquivos-modelo separados para os três tipos. Importe os associados primeiro, pois as mensalidades históricas são vinculadas pelo e-mail já cadastrado.
+- Mensalidades antigas marcadas como pagas só podem ser importadas com **confirmação expressa da administração**. A importação grava o histórico com método `imported`, mas não consulta o banco nem comprova conciliação. Revise extratos e comprovantes antes de confirmar.
+- A importação de receitas e despesas evita duplicações pelo conjunto de data, tipo, categoria, descrição, valor e referência. **Não importe recebimentos de mensalidades como receitas adicionais**, para não contar o mesmo dinheiro duas vezes.
 
 ### Dados bancários e avisos
 

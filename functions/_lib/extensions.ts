@@ -36,9 +36,15 @@ export const EXTENSION_SCHEMA = [
   )`
 ] as const;
 
+export type D1Query = {
+  bind: (...values: unknown[]) => D1Query;
+  first: <T = any>() => Promise<T | null>;
+  all: <T = any>() => Promise<{ results: T[] }>;
+  run: () => Promise<any>;
+};
 export type D1Like = {
-  prepare: (sql: string) => { bind: (...values: unknown[]) => any; first: <T = any>() => Promise<T | null>; all: <T = any>() => Promise<{ results: T[] }>; run: () => Promise<any> };
-  batch: (queries: any[]) => Promise<any>;
+  prepare: (sql: string) => D1Query;
+  batch: (queries: D1Query[]) => Promise<unknown>;
 };
 export async function ensureExtensionSchema(db: D1Like): Promise<void> {
   const result = await db.prepare("SELECT COUNT(*) AS total FROM sqlite_master WHERE type='table' AND name IN ('site_pages','site_page_versions','recurring_plans','recurring_plan_members','notice_logs')").first<{total:number}>();

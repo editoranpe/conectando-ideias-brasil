@@ -5,11 +5,14 @@
 import { onRequest as apiHandler } from '../functions/api/[[path]]';
 import { ensureExtensionSchema } from '../functions/_lib/extensions';
 import { runDuePlans } from '../functions/_lib/recurring';
+import { deliverScheduledNotices } from '../functions/_lib/notices';
 
 type WorkerEnv = {
   ASSETS: { fetch(request: Request): Promise<Response> };
   DB?: Parameters<typeof apiHandler>[0]['env']['DB'];
   SETUP_TOKEN?: string;
+  RESEND_API_KEY?: string; RESEND_FROM?: string;
+  WHATSAPP_ACCESS_TOKEN?: string; WHATSAPP_PHONE_NUMBER_ID?: string;
 };
 
 export default {
@@ -37,5 +40,7 @@ export default {
     await ensureExtensionSchema(env.DB);
     const result = await runDuePlans(env.DB);
     console.log('CIB_RECURRENCE_RUN', result);
+    const notices = await deliverScheduledNotices({DB:env.DB,RESEND_API_KEY:env.RESEND_API_KEY,RESEND_FROM:env.RESEND_FROM,WHATSAPP_ACCESS_TOKEN:env.WHATSAPP_ACCESS_TOKEN,WHATSAPP_PHONE_NUMBER_ID:env.WHATSAPP_PHONE_NUMBER_ID},'https://conectando-ideias-brasil.jeferson-samagaia.workers.dev');
+    console.log('CIB_NOTICES_RUN', notices);
   },
 };

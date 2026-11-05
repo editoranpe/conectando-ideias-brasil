@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {validatePage} from '../functions/_lib/siteBuilder.ts';
-const safe=()=>({title:'Conectando Ideias Brasil',font:'modern',headerColor:'#0b493a',accentColor:'#d5ee48',sections:[{id:'inicio',label:'Topo',columns:1,background:'#ffffff',color:'#123d32',padding:60,widgets:[{id:'titulo01',type:'heading',title:'Olá, associados',text:'Bem-vindos'}]}]});
+const safe=()=>({title:'Sua Organização',font:'modern',headerColor:'#0b493a',accentColor:'#d5ee48',sections:[{id:'inicio',label:'Topo',columns:1,background:'#ffffff',color:'#123d32',padding:60,widgets:[{id:'titulo01',type:'heading',title:'Olá, associados',text:'Bem-vindos'}]}]});
 test('permite publicação de páginas estruturadas',()=>{assert.equal(validatePage(safe()),true)});
 test('rejeita URL javascript e código perigoso',()=>{
  const page=safe() as any;page.sections[0].widgets[0].url='javascript:alert(1)';
@@ -18,8 +18,8 @@ test('rejeita ids duplicados e layouts excessivos',()=>{
 
 test('accepts editable navigation, icon cards, testimonial portraits and image-text blocks',()=>{
  const page=safe() as any;
- page.brandName='Conectando Ideias';
- page.brandSubtitle='BRASIL';
+ page.brandName='Sua Marca';
+ page.brandSubtitle='EMPRESA';
  page.logoImage='/api/media/12345678-1234-4234-8234-123456789012.webp';
  page.menuItems=[{id:'menuinicio',label:'Início',href:'#inicio'},{id:'menuassociado',label:'Área do associado',href:'/entrar'}];
  page.sections[0].widgets.push(

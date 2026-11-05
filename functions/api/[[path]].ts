@@ -154,14 +154,29 @@ async function handle(context: Context): Promise<Response> {
     if (setupHash !== await sha256(env.SETUP_TOKEN)) fail('Código de configuração inválido', 403);
     const loginEmail = email(data.email);
     const name = required(data.name, 'o nome do administrador', 120);
-    const hashed = await passwordHash(str(data.password, 128));
+    let hashed: { salt: string; hash: string };
+    try {
+      hashed = await passwordHash(str(data.password, 128));
+    } catch (error) {
+      console.error('CIB_SETUP_CRYPTO', error);
+      fail('Falha ao proteger a senha. Informe à equipe o código CIB_SETUP_CRYPTO.', 500);
+    }
     const userId = uuid(), memberId = uuid(), now = NOW();
     // A restrição UNIQUE do banco impede duas inicializações simultâneas com o mesmo e-mail.
-    await db.batch([
-      db.prepare('INSERT INTO members(id,name,email,company,status,joined_at,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?)').bind(memberId, name, loginEmail, 'Administração CIB', 'active', currentDateBR(), now, now),
-      db.prepare('INSERT INTO users(id,email,password_salt,password_hash,role,member_id,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?)').bind(userId, loginEmail, hashed.salt, hashed.hash, 'admin', memberId, now, now),
-    ]);
-    await audit(db, { id: userId, email: loginEmail, role: 'admin', member_id: memberId }, 'initial_setup', 'user', userId);
+    try {
+      await db.batch([
+        db.prepare('INSERT INTO members(id,name,email,company,status,joined_at,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?)').bind(memberId, name, loginEmail, 'Administração CIB', 'active', currentDateBR(), now, now),
+        db.prepare('INSERT INTO users(id,email,password_salt,password_hash,role,member_id,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?)').bind(userId, loginEmail, hashed.salt, hashed.hash, 'admin', memberId, now, now),
+        db.prepare('INSERT INTO audit_logs(id,actor_id,action,entity_type,entity_id,details,created_at) VALUES(?,?,?,?,?,?,?)')
+          .bind(uuid(), userId, 'initial_setup', 'user', userId, '{}', now),
+      ]);
+    } catch (error) {
+      const message = String((error as Error)?.message ?? '');
+      console.error('CIB_SETUP_D1', error);
+      if (/UNIQUE constraint failed/i.test(message)) fail('O administrador já existe. Atualize a página e tente entrar.', 409);
+      if (/FOREIGN KEY constraint failed/i.test(message)) fail('Inconsistência no banco de dados. Informe o código CIB_SETUP_D1_FK.', 500);
+      fail('Não foi possível gravar o administrador no D1. Informe o código CIB_SETUP_D1.', 500);
+    }
     return json({ success: true, message: 'Administração criada. Faça login.' }, 201);
   }
   if (is('POST', 'login')) {

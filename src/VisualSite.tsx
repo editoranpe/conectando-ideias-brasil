@@ -6,6 +6,7 @@ import { api } from './api';
 export type CibWidget = {
   id:string; type:'heading'|'text'|'image'|'button'|'features'|'quote'|'faq'|'signup'|'divider'|'spacer';
   title?:string; text?:string; image?:string; url?:string; label?:string;
+  imageWidth?:number; imageHeight?:number; imageBytes?:number; imageMime?:string;
   color?:string; background?:string; align?:'left'|'center'|'right';fontSize?:number;
   items?:Array<{title?:string;text?:string}>;
 };
@@ -20,7 +21,7 @@ export function newWidget(type:CibWidget['type']):CibWidget{
   const base:CibWidget={id:freshId(),type,align:'left',fontSize:type==='heading'?42:17};
   if(type==='heading')return {...base,title:'Novo título',text:'Subtítulo opcional'};
   if(type==='text')return {...base,text:'Digite seu texto aqui.'};
-  if(type==='image')return {...base,image:'https://editoranpe.com.br/wp-content/uploads/2025/12/07.jpeg',label:'Imagem do grupo'};
+  if(type==='image')return {...base,image:'',label:'Imagem do grupo'};
   if(type==='button')return {...base,label:'Saiba mais',url:'#participar'};
   if(type==='features')return {...base,title:'Nossos diferenciais',items:[{title:'Conexões',text:'Crescemos juntos'},{title:'Conhecimento',text:'Aprendizado prático'},{title:'Negócios',text:'Oportunidades reais'}]};
   if(type==='faq')return {...base,title:'Perguntas frequentes',items:[{title:'Como faço parte?',text:'Preencha seu cadastro e aguarde o retorno da comissão.'}]};
@@ -70,11 +71,24 @@ function Signup({w}:{w:CibWidget}){
  const submit=async(e:React.FormEvent)=>{e.preventDefault();setStatus('Enviando...');try{await api('apply','POST',form);setStatus('Recebemos seu interesse. A comissão entrará em contato!');setForm({name:'',email:'',phone:'',company:'',message:'',consent:false,website:''});}catch(err){setStatus((err as Error).message)}};
  return <div className="cib-signup"><h2>{w.title||'Quero participar'}</h2><p>{w.text}</p><form onSubmit={submit}><div className="cib-signup-row"><input aria-label="Nome completo" required placeholder="Nome completo" value={form.name} onChange={e=>setForm({...form,name:e.target.value})}/><input aria-label="E-mail" type="email" required placeholder="E-mail" value={form.email} onChange={e=>setForm({...form,email:e.target.value})}/></div><div className="cib-signup-row"><input aria-label="WhatsApp" required placeholder="WhatsApp" value={form.phone} onChange={e=>setForm({...form,phone:e.target.value})}/><input aria-label="Empresa" required placeholder="Empresa" value={form.company} onChange={e=>setForm({...form,company:e.target.value})}/></div><textarea aria-label="Mensagem" placeholder="Como podemos conectar você?" value={form.message} onChange={e=>setForm({...form,message:e.target.value})}/><label className="cib-consent"><input type="checkbox" required checked={form.consent} onChange={e=>setForm({...form,consent:e.target.checked})}/> Autorizo o uso dos meus dados para retorno sobre minha solicitação. <Link to="/privacidade">Política de privacidade</Link>.</label><button className="cib-signup-button">Enviar solicitação <ArrowRight size={16}/></button><div role="status">{status}</div></form></div>
 }
+function CibImageWidget({w}:{w:CibWidget}){
+ const [broken,setBroken]=useState(false);
+ React.useEffect(()=>{setBroken(false)},[w.image]);
+ const usable=!!w.image&&!broken;
+ return <figure className="cib-widget-image">
+   {usable?<img src={w.image} alt={w.label||'Imagem do grupo'} loading="lazy" onError={()=>setBroken(true)}/>:
+     <div className="cib-widget-image-placeholder" role="img" aria-label="Imagem não disponível">
+       <span>✳</span><strong>{w.image?'Não foi possível carregar esta imagem.':'Imagem ainda não enviada'}</strong>
+       <small>Abra o widget no editor e escolha um arquivo do seu computador.</small>
+     </div>}
+   {w.label&&<figcaption>{w.label}</figcaption>}
+ </figure>;
+}
 export function CibWidgetView({widget:w,editing=false}:{widget:CibWidget;editing?:boolean}){
  const style:React.CSSProperties={textAlign:w.align||'left',color:w.color||'inherit',background:w.background||'transparent',fontSize:w.fontSize? w.fontSize:undefined};
  if(w.type==='heading')return <div className="cib-widget-heading" style={style}><h1 style={{fontSize:'inherit'}}>{w.title}</h1>{w.text&&<p>{w.text}</p>}</div>;
  if(w.type==='text')return <div className="cib-widget-text" style={style}>{w.text}</div>;
- if(w.type==='image')return <figure className="cib-widget-image"><img src={w.image||''} alt={w.label||'Imagem do grupo'} loading="lazy"/>{w.label&&<figcaption>{w.label}</figcaption>}</figure>;
+ if(w.type==='image')return <CibImageWidget w={w}/>;
  if(w.type==='button')return <div style={style}><a className="cib-widget-button" href={editing?'#':w.url||'#participar'} onClick={editing?e=>e.preventDefault():undefined}>{w.label||'Saiba mais'} <ArrowRight size={17}/></a></div>;
  if(w.type==='features')return <div className="cib-widget-features" style={style}><h2>{w.title}</h2><div className="cib-feature-grid">{(w.items||[]).map((item,i)=><article key={i}><span className="cib-feature-icon">✳</span><h3>{item.title}</h3><p>{item.text}</p></article>)}</div></div>;
  if(w.type==='quote')return <blockquote className="cib-widget-quote" style={style}><h2>{w.title}</h2><p>“{w.text}”</p></blockquote>;

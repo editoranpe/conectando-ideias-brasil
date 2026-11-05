@@ -24,14 +24,20 @@ export default function PublicSite(){
  * Customers must replace this with a reviewed policy before collecting personal data.
  */
 export function Privacy(){
+ const [page,setPage]=useState<CibPage>(whiteLabelDemoPage);
+ useEffect(()=>{
+  let active=true;
+  api<{page:CibPage|null}>('public-page').then(data=>{
+   if(active && data.page?.sections?.length)setPage(data.page);
+  }).catch(()=>{});
+  return ()=>{active=false};
+ },[]);
  return <div className="npe-privacy">
-   <header><Link to="/"><img src={NPE_THEME.logo} alt="Editora NPE"/><span>Voltar ao site</span></Link></header>
+   <header><Link to="/">{page.logoImage?<img src={page.logoImage} alt={page.brandName||'Logotipo'}/>:<strong>{page.brandName||'Sua empresa'}</strong>}<span>Voltar ao site</span></Link></header>
    <main>
-     <small>MODELO PERSONALIZÁVEL</small>
-     <h1>Privacidade e tratamento de dados</h1>
-     <p>Este texto é um <strong>marcador de conteúdo</strong>, destinado apenas à demonstração comercial da plataforma.</p>
-     <p>Antes de receber dados reais, a empresa responsável deverá informar sua razão social, o responsável pelos dados, as finalidades do tratamento, os canais de contato, prazos de retenção e demais informações exigidas pela legislação aplicável.</p>
-     <p>Substitua este aviso por sua própria política de privacidade revisada. A Editora NPE não é automaticamente controladora dos dados cadastrados pelas empresas clientes.</p>
+     <small>TRANSPARÊNCIA</small>
+     <h1>{page.privacyTitle||'Privacidade e tratamento de dados'}</h1>
+     <p style={{whiteSpace:'pre-line'}}>{page.privacyText||'Conteúdo a personalizar. Informe aqui a política de privacidade aprovada da sua empresa antes de coletar dados reais.'}</p>
      <Link className="npe-privacy-back" to="/">Retornar à página inicial</Link>
    </main>
  </div>;

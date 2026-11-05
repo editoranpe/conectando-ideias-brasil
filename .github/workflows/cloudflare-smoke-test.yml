@@ -27,6 +27,19 @@ jobs:
           grep -qi 'Conectando Ideias Brasil' /tmp/cib-home.html
           grep -q 'id="root"' /tmp/cib-home.html
           echo 'Frontend React disponível.'
+          release_status=000
+          for attempt in $(seq 1 12); do
+            release_status=$(curl -L --silent --show-error --max-time 20 -o /tmp/cib-release.json -w '%{http_code}' "$SITE/api/version" || true)
+            echo "Worker version tentativa $attempt: HTTP $release_status"
+            cat /tmp/cib-release.json 2>/dev/null || true
+            echo
+            if [ "$release_status" = '200' ] && grep -q '2026-11-05-db-bootstrap-v1' /tmp/cib-release.json; then break; fi
+            sleep 10
+          done
+          if [ "$release_status" != '200' ] || ! grep -q '2026-11-05-db-bootstrap-v1' /tmp/cib-release.json; then
+            echo 'Cloudflare ainda serve um Worker antigo. Verifique Settings > Builds / Deployments.'
+            exit 1
+          fi
           api_status=000
           for attempt in $(seq 1 9); do
             api_status=$(curl -L --silent --show-error --max-time 20 -o /tmp/cib-health.json -w '%{http_code}' "$SITE/api/health" || true)

@@ -32,7 +32,7 @@ export function validatePage(input: unknown): input is BuilderPage {
       !textLen(p.brandName,90) || !textLen(p.brandSubtitle,45) || !textLen(p.footerText,240) ||
       !safeUrl(p.logoImage) || (p.menuItems!==undefined && (
         !Array.isArray(p.menuItems) || p.menuItems.length>16 ||
-        p.menuItems.some(link=>!link || typeof link.id!=='string' || !/^[\\w-]{4,64}$/.test(link.id) ||
+        p.menuItems.some(link=>!link || typeof link.id!=='string' || !/^[\w-]{4,64}$/.test(link.id) ||
           typeof link.label!=='string' || !link.label.trim() || !textLen(link.label,50) ||
           typeof link.href!=='string' || !link.href.trim() || !safeUrl(link.href))
       )) || !Array.isArray(p.sections) ||

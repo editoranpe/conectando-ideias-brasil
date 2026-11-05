@@ -14,7 +14,7 @@ export type CibWidget = {
 };
 export type CibSection = {id:string;label:string;columns:number;background:string;color:string;padding:number;backgroundImage?:string;widgets:CibWidget[]};
 export type CibMenuItem = {id:string;label:string;href:string};
-export type CibPage = {title:string;font:'sans'|'serif'|'modern';headerColor:string;accentColor:string;sections:CibSection[];menuItems?:CibMenuItem[];logoImage?:string;brandName?:string;brandSubtitle?:string;footerText?:string};
+export type CibPage = {title:string;font:'sans'|'serif'|'modern';headerColor:string;accentColor:string;sections:CibSection[];menuItems?:CibMenuItem[];logoImage?:string;brandName?:string;brandSubtitle?:string;footerText?:string;privacyTitle?:string;privacyText?:string};
 export const freshId = () => 'cib'+Math.random().toString(36).slice(2,11);
 export const widgetNames:Record<CibWidget['type'],string> = {
   heading:'Título',text:'Texto',image:'Imagem',button:'Botão',features:'Cards / Benefícios',

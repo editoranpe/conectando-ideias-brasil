@@ -82,6 +82,18 @@ npx wrangler dev
 
 O documento é armazenado no D1, em `site_pages` e `site_page_versions`. Apenas `role=admin` pode atualizar e publicar. A API valida tipos, extensões, comprimentos, cores e URLs e não aceita scripts ou HTML arbitrário.
 
+### Imagens no editor (upload direto, sem links externos)
+
+1. Acesse `/editar-site`, selecione um widget **Imagem** e clique em **Selecionar e enviar imagem**. Também é possível carregar a imagem de fundo de uma seção.
+2. Escolha uma imagem do computador (`.jpg`, `.jpeg`, `.png` ou `.webp`). O navegador converte automaticamente para **WebP** e reduz, se necessário, para até **1600 px no lado maior** e **900 KB** de tamanho final.
+3. A recomendação exibida ao lado do widget é **1600 × 900 px (horizontal), .webp, até 900 KB**. O sistema aceita outras proporções e mostra as dimensões e o tamanho reais do arquivo já enviado.
+4. As imagens ficam armazenadas **no banco Cloudflare D1 já conectado**, na tabela `site_media_assets`. Cada imagem recebe um endereço do mesmo site (`/api/media/ID.webp`), sem dependência de hospedagens externas. Os links de mídia são somente leitura para visitantes; uploads e a biblioteca de mídia requerem administrador autenticado.
+5. Depois do envio, ajuste a **legenda** do widget. Clique em **Salvar rascunho** e depois **Publicar** para que a imagem seja exibida no site. O envio do arquivo, isoladamente, não publica o layout.
+6. O seletor **Imagens já enviadas** permite reutilizar uploads anteriores. Links externos de imagens antigas continuam sendo renderizados enquanto válidos, mas o formulário de edição não solicita URLs.
+7. Para conferir a disponibilidade do armazenamento, abra `/api/media/status`. A resposta deve conter `"ready":true`. A tabela é criada automaticamente sem necessidade de criar um bucket R2.
+
+**Limites:** até 900 KB por arquivo final e no máximo 400 imagens nesta implementação. O D1 aceita BLOBs de até 2 MB, mas o limite menor evita ocupar o banco desnecessariamente. Em um uso com centenas ou milhares de fotos, recomendamos migrar a biblioteca para **Cloudflare R2**. Não coloque fotos pessoais não autorizadas em áreas públicas.
+
 ### Assinaturas mensais
 
 1. Abra **Assinaturas mensais** ou `/assinaturas`.

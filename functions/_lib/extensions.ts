@@ -28,6 +28,11 @@ export const EXTENSION_SCHEMA = [
     PRIMARY KEY(plan_id,member_id)
   )`,
   `CREATE INDEX IF NOT EXISTS recurring_plans_queue ON recurring_plans(status,next_period)`,
+  `CREATE TABLE IF NOT EXISTS recurring_charge_links (
+    plan_id TEXT NOT NULL REFERENCES recurring_plans(id) ON DELETE CASCADE,
+    charge_id TEXT NOT NULL REFERENCES charges(id) ON DELETE CASCADE,
+    created_at TEXT NOT NULL, PRIMARY KEY(plan_id,charge_id)
+  )`,
   `CREATE TABLE IF NOT EXISTS notice_logs (
     id TEXT PRIMARY KEY, charge_id TEXT NOT NULL REFERENCES charges(id),
     channel TEXT NOT NULL, status TEXT NOT NULL,
@@ -47,8 +52,8 @@ export type D1Like = {
   batch: (queries: D1Query[]) => Promise<unknown>;
 };
 export async function ensureExtensionSchema(db: D1Like): Promise<void> {
-  const result = await db.prepare("SELECT COUNT(*) AS total FROM sqlite_master WHERE type='table' AND name IN ('site_pages','site_page_versions','recurring_plans','recurring_plan_members','notice_logs')").first<{total:number}>();
-  if (Number(result?.total || 0) !== 5) {
+  const result = await db.prepare("SELECT COUNT(*) AS total FROM sqlite_master WHERE type='table' AND name IN ('site_pages','site_page_versions','recurring_plans','recurring_plan_members','recurring_charge_links','notice_logs')").first<{total:number}>();
+  if (Number(result?.total || 0) !== 6) {
     await db.batch(EXTENSION_SCHEMA.map(sql => db.prepare(sql)));
   }
 }

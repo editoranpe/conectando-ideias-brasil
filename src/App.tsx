@@ -3,7 +3,7 @@ import { Navigate, Route, Routes, Link, useNavigate, useSearchParams } from 'rea
 import { ArrowLeft, ArrowRight, Eye, EyeOff, LockKeyhole, ShieldCheck, UserRoundPlus } from 'lucide-react';
 import PublicSite, { Privacy } from './Site';
 import Dashboard from './Dashboard';
-import VisualEditor from './VisualEditor';
+import VisualEditorV2 from './VisualEditorV2';
 import FinanceTools from './FinanceTools';
 import { api, User } from './api';
 

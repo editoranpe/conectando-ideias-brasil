@@ -6,16 +6,16 @@ export type NoticeEnv = {
   WHATSAPP_ACCESS_TOKEN?:string; WHATSAPP_PHONE_NUMBER_ID?:string;
 };
 type NoticeRow = {id:string;period:string;due_date:string;amount_cents:number;name:string;email:string;phone:string|null;channels:string};
-function template(row:NoticeRow,origin:string){
+function template(row:NoticeRow,origin:string,brand:string){
  const amount=new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(row.amount_cents/100);
- return {amount,text:`Olá, ${row.name}! Sua mensalidade do Conectando Ideias Brasil de ${row.period}, no valor de ${amount}, vence em ${row.due_date}. Consulte o QR Code Pix no portal: ${origin}/entrar`};
+ return {amount,text:`Olá, ${row.name}! Sua cobrança de ${brand} referente a ${row.period}, no valor de ${amount}, vence em ${row.due_date}. Consulte o QR Code Pix no portal: ${origin}/entrar`};
 }
 /** Explicit opt-in for automatic reminders. Does not affect invoice issuance.
  * Provider credentials are secrets on Cloudflare, never committed to Git.
  * Idempotency is preserved through notice_logs per charge/channel.
  */
 export async function deliverScheduledNotices(env:NoticeEnv,origin:string):Promise<{sent:number;failed:number;skipped:number}>{
- const db=env.DB, pref=await db.prepare("SELECT value FROM settings WHERE key='billing_auto_notices'").first<{value:string}>();
+ const db=env.DB, brandRow=await db.prepare("SELECT value FROM settings WHERE key='group_name'").first<{value:string}>(), brand=brandRow?.value||'Sua organização', pref=await db.prepare("SELECT value FROM settings WHERE key='billing_auto_notices'").first<{value:string}>();
  if(pref?.value!=='true')return {sent:0,failed:0,skipped:0};
  const canEmail=!!(env.RESEND_API_KEY&&env.RESEND_FROM);
  const canWhatsApp=!!(env.WHATSAPP_ACCESS_TOKEN&&env.WHATSAPP_PHONE_NUMBER_ID);
@@ -45,18 +45,18 @@ export async function deliverScheduledNotices(env:NoticeEnv,origin:string):Promi
     .bind(id,row.id,channel,new Date().toISOString()).run();
    if(!Number(lock?.meta?.changes||0)){skipped++;continue}
    try{
-    const msg=template(row,origin);let response:Response;
+    const msg=template(row,origin,brand);let response:Response;
     if(channel==='email'){
      response=await fetch('https://api.resend.com/emails',{method:'POST',
       headers:{Authorization:`Bearer ${env.RESEND_API_KEY}`,'Content-Type':'application/json'},
-      body:JSON.stringify({from:env.RESEND_FROM,to:[row.email],subject:'Mensalidade Conectando Ideias Brasil',text:msg.text})});
+      body:JSON.stringify({from:env.RESEND_FROM,to:[row.email],subject:'Cobrança '+brand,text:msg.text})});
     }else{
      const digits=String(row.phone).replace(/\D/g,'');
      const phone=digits.startsWith('55')?digits:'55'+digits;
      response=await fetch(`https://graph.facebook.com/v21.0/${env.WHATSAPP_PHONE_NUMBER_ID}/messages`,{method:'POST',
       headers:{Authorization:`Bearer ${env.WHATSAPP_ACCESS_TOKEN}`,'Content-Type':'application/json'},
       body:JSON.stringify({messaging_product:'whatsapp',to:phone,type:'template',
-       template:{name:'cib_mensalidade',language:{code:'pt_BR'},components:[{type:'body',parameters:[
+       template:{name:'mensalidade_cliente',language:{code:'pt_BR'},components:[{type:'body',parameters:[
         {type:'text',text:row.name},{type:'text',text:row.period},
         {type:'text',text:msg.amount},{type:'text',text:row.due_date}
        ]}]}})});
@@ -66,7 +66,7 @@ export async function deliverScheduledNotices(env:NoticeEnv,origin:string):Promi
     sent++;
    }catch(e){
     // Do not log banking information, tokens, phone numbers or provider payloads.
-    console.warn('CIB_NOTICE_FAILED',channel,String((e as Error)?.message).slice(0,70));
+    console.warn('NPE_NOTICE_FAILED',channel,String((e as Error)?.message).slice(0,70));
     await db.prepare("DELETE FROM notice_logs WHERE id=? AND status='queued'").bind(id).run();
     failed++;
    }

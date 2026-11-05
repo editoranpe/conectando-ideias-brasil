@@ -8,7 +8,7 @@ on:
       - 'dist/index.html'
       - 'wrangler.jsonc'
       - 'functions/_lib/schema.ts'
-      - 'functions/api/[[path]].ts'
+      - 'functions/api/**'
       - 'src/worker.ts'
   workflow_dispatch:
 

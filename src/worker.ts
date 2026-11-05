@@ -16,7 +16,7 @@ export default {
   async fetch(request: Request, env: WorkerEnv): Promise<Response> {
     const path = new URL(request.url).pathname;
     if (path === '/api/version') {
-      return new Response(JSON.stringify({ release: '2026-11-05-db-bootstrap-v1', runtime: 'cloudflare-worker' }), {
+      return new Response(JSON.stringify({ release: '2026-11-05-db-bootstrap-v1', runtime: 'cloudflare-worker', features: ['visual_builder', 'monthly_recurring', 'csv_import', 'pix_notices'], site_version: '2026-11-05-cib-v2' }), {
         headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' },
       });
     }

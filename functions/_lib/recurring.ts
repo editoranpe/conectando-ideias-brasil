@@ -33,6 +33,9 @@ export async function runDuePlans(db: D1Like, todayPeriod = currentMonthBR()): P
   const {results: plans} = await db.prepare(
     "SELECT * FROM recurring_plans WHERE status='active' AND next_period<=? ORDER BY created_at LIMIT 100"
   ).bind(todayPeriod).all<RecurringPlan>();
+  const setting=await db.prepare("SELECT value FROM settings WHERE key='monthly_amount_cents'").first<{value:string}>();
+  const configured=Number(setting?.value||4000);
+  const monthlyDefault=Number.isSafeInteger(configured)&&configured>0?configured:4000;
   let installments = 0, processedPlans = 0;
   for (const plan of plans) {
     const {results: members} = await db.prepare(
@@ -46,7 +49,7 @@ export async function runDuePlans(db: D1Like, todayPeriod = currentMonthBR()): P
         "INSERT OR IGNORE INTO charges(id,member_id,period,due_date,amount_cents,status,notes,created_at,updated_at) VALUES(?,?,?,?,?,'pending',?,?,?)"
       ).bind(
         crypto.randomUUID(),m.id,period,monthlyDueDate(period,plan.due_day),
-        plan.amount_cents ?? m.monthly_fee_cents ?? 4000,
+        plan.amount_cents ?? m.monthly_fee_cents ?? monthlyDefault,
         `Assinatura ${plan.title} (${processed+1}/${plan.repetitions})`,now,now
       ));
       // D1 batch limits vary; split into safe groups and preserve the

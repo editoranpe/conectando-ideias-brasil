@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight, ArrowUpRight, ChevronDown, CircleCheck, Coffee, Facebook, Globe2, Handshake, Heart, Lightbulb, MapPin, Menu, Mic2, ShieldCheck, Sparkles, Target, TrendingUp, Users, Wallet, X } from 'lucide-react';
 import { api, brl } from './api';
+import { VisualSite, type CibPage } from './VisualSite';
 
 const LOGO = 'https://editoranpe.com.br/wp-content/uploads/2025/12/Conectando-09-12-2025-1.png';
 const photos = {
@@ -37,12 +38,15 @@ function Brand({light=false}:{light?:boolean}){
 }
 
 export default function PublicSite(){
+  const [publishedPage,setPublishedPage]=useState<CibPage|null>(null);
   const [openMenu,setOpenMenu]=useState(false), [faqOpen,setFaqOpen]=useState<number|null>(null);
   const [amount,setAmount]=useState(4000), [place,setPlace]=useState('Auditório do Casarão dos Sonhos, Blumenau - SC');
   const [form,setForm]=useState({name:'',email:'',phone:'',company:'',message:'',consent:false,website:''});
   const [formStatus,setFormStatus]=useState<'idle'|'sending'|'sent'>('idle'),[error,setError]=useState('');
   useEffect(()=>{api<{monthly_amount_cents:number;meeting_place:string}>('public').then(x=>{setAmount(x.monthly_amount_cents);setPlace(x.meeting_place);}).catch(()=>{});},[]);
+  useEffect(()=>{api<{page:CibPage|null}>('public-page').then(x=>setPublishedPage(x.page)).catch(()=>{});},[]);
   const submit=async (event:React.FormEvent)=>{event.preventDefault();setError('');setFormStatus('sending');try{await api('apply','POST',form);setFormStatus('sent');}catch(err){setError((err as Error).message);setFormStatus('idle');}};
+  if(publishedPage?.sections?.length)return <VisualSite page={publishedPage}/>;
   return <div className="site-public">
     <header className="site-header"><div className="container site-header-content"><Brand/>
       <nav className={openMenu?'site-nav is-open':'site-nav'} aria-label="Menu principal">

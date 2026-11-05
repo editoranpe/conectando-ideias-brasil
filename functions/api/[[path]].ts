@@ -119,7 +119,7 @@ function csv(rows: any[], columns: [string,string][]): Response {
 async function handle(context: Context): Promise<Response> {
   const { request, env } = context;
   const db = env.DB;
-  if (!db?.prepare) return json({ error: 'Banco D1 não conectado. Configure a vinculação DB no Cloudflare Pages.' }, 503);
+  if (!db?.prepare) return json({ error: 'Banco D1 não conectado. Configure o binding DB no Cloudflare Workers.' }, 503);
   const path = routeSegments(request), method = request.method.toUpperCase();
   if (!['GET','POST','PATCH'].includes(method)) fail('Método não permitido', 405);
   if (method !== 'GET') requireOrigin(request);

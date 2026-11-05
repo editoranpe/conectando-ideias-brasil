@@ -55,3 +55,17 @@ npx wrangler dev
 - `GET /api/setup-status` → indica se precisa criar o primeiro administrador.
 - `GET /` e `/demonstracao` → site institucional e visualização fictícia.
 - O envio de código ao GitHub **não comprova sozinho** que o Cloudflare implantou: valide os registros de Builds e o URL final.
+
+## Provisionamento automatizado do D1 (sem compartilhar credenciais)
+
+O workflow manual [Provision and connect Cloudflare D1](.github/workflows/provision-d1.yml) evita copiar UUIDs manualmente e mantém a associação permanente com o Worker no `wrangler.jsonc`.
+
+**O que configurar uma única vez** (somente na interface do GitHub, nunca em commits ou conversas):
+
+1. No Cloudflare, gere um API Token com permissão **Account > D1 > Edit**, restrito à conta que hospeda este Worker. Consulte [Cloudflare: API Tokens](https://dash.cloudflare.com/profile/api-tokens).
+2. No repositório, abra **Settings > Secrets and variables > Actions > New repository secret**. Cadastre `CLOUDFLARE_API_TOKEN` com o token e `CLOUDFLARE_ACCOUNT_ID` com o identificador da conta Cloudflare.
+3. Abra **Actions > Provision and connect Cloudflare D1 > Run workflow**, usando a branch `main`.
+
+O workflow consulta o D1 `conectando-ideias-brasil-db`; cria somente se ainda não existir; liga o binding `DB`, aplica as migrações SQL na base remota e grava o UUID em `wrangler.jsonc`. Em caso de divergência com um binding já existente, **interrompe sem substituí-lo**. O commit com a configuração aciona o deploy do Worker ligado ao GitHub. A permissão de escrita do token deve estar limitada a D1; o deploy continua sendo feito pela integração Cloudflare-GitHub já instalada.
+
+**Atenção:** este workflow não recebe nem cria a senha do administrador. Após o banco estar ligado e `/api/health` retornar HTTP 200, adicione **SETUP_TOKEN** como segredo de execução em **Cloudflare Worker > Settings > Variables and Secrets** e crie a primeira conta através de `/entrar`. O token de inicialização deve ser aleatório e ter pelo menos 24 caracteres. Não envie o segredo por mensagem.

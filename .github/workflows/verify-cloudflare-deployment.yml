@@ -1,4 +1,4 @@
-name: Verify Cloudflare Worker deployment
+name: Verify Cloudflare Worker production
 
 on:
   push:
@@ -12,25 +12,38 @@ jobs:
   verify:
     runs-on: ubuntu-latest
     steps:
-      - name: Check that the site and API become available
+      - name: Check production site, API and D1
         shell: bash
         env:
           SITE_URL: https://conectando-ideias-brasil.jeferson-samagaia.workers.dev
         run: |
-          set -uo pipefail
-          echo "Verifying Cloudflare deployment at ${SITE_URL}"
-          for attempt in $(seq 1 20); do
-            site_status=$(curl --location --silent --show-error --output /tmp/cib-site.html --write-out '%{http_code}' --max-time 20 "${SITE_URL}/" || true)
-            version_status=$(curl --location --silent --show-error --output /tmp/cib-version.json --write-out '%{http_code}' --max-time 20 "${SITE_URL}/api/version" || true)
-            echo "Attempt ${attempt}/20: homepage HTTP ${site_status}, version endpoint HTTP ${version_status}"
-            if [[ "${site_status}" == "200" && "${version_status}" == "200" ]] && grep -q 'cloudflare-worker' /tmp/cib-version.json; then
-              echo "Cloudflare Worker is responding."
-              echo "Site: ${SITE_URL}/"
-              echo "API: ${SITE_URL}/api/version"
-              cat /tmp/cib-version.json
+          set -euo pipefail
+          echo "Verificando o site de produção: ${SITE_URL}"
+          site_status=000
+          version_status=000
+          health_status=000
+          setup_status=000
+          for attempt in $(seq 1 24); do
+            site_status=$(curl -L -sS --max-time 20 -o /tmp/cib-site.html -w '%{http_code}' "${SITE_URL}/" || true)
+            version_status=$(curl -L -sS --max-time 20 -o /tmp/cib-version.json -w '%{http_code}' "${SITE_URL}/api/version" || true)
+            health_status=$(curl -L -sS --max-time 20 -o /tmp/cib-health.json -w '%{http_code}' "${SITE_URL}/api/health" || true)
+            setup_status=$(curl -L -sS --max-time 20 -o /tmp/cib-setup.json -w '%{http_code}' "${SITE_URL}/api/setup-status" || true)
+            echo "Tentativa ${attempt}/24: site=${site_status}, versão=${version_status}, D1=${health_status}, setup=${setup_status}"
+            if [[ "${site_status}" == "200" && "${version_status}" == "200" && "${health_status}" == "200" && "${setup_status}" == "200" ]] &&
+               grep -qi 'Conectando Ideias Brasil' /tmp/cib-site.html &&
+               grep -q 'cloudflare-worker' /tmp/cib-version.json &&
+               grep -q '"ok":true' /tmp/cib-health.json &&
+               grep -q '"setup_required":' /tmp/cib-setup.json; then
+              echo "Site, Worker, API e banco D1: OK."
+              if grep -q '"setup_required":true' /tmp/cib-setup.json; then
+                echo "::notice::Primeiro administrador ainda não foi criado. Cadastre SETUP_TOKEN como Secret no Cloudflare e abra /entrar."
+              else
+                echo "Já existe uma conta administrativa no D1."
+              fi
               exit 0
             fi
-            sleep 15
+            sleep 10
           done
-          echo "::error::Worker was not serving the expected site and API. Check Workers & Pages → Deployments/Builds and Settings → Builds in Cloudflare."
+          echo "::error::A verificação de produção falhou. Inspecione Deployments, Bindings DB e Builds no Cloudflare."
+          echo "HTTP final: site=${site_status}, versão=${version_status}, D1=${health_status}, setup=${setup_status}"
           exit 1

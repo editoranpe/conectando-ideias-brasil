@@ -68,3 +68,55 @@ npx wrangler dev
 - `GET /demonstracao`: painel fictício.
 
 **Importante:** acesso ao repositório GitHub não dá permissão para mudar os recursos da conta Cloudflare. Alterações de bindings, variáveis e segredos são feitas na interface da Cloudflare, com a conta autorizada.
+
+## Versão 2: editor, assinaturas, avisos e importação
+
+### Editor visual (somente administrador)
+
+1. Entre em `/entrar` com a conta administradora já inicializada via `SETUP_TOKEN`.
+2. Abra `/painel` → **Editor visual do site** ou acesse `/editar-site`.
+3. Adicione/remova seções, configure colunas, cores, fontes, imagem de fundo, espaçamento e selecione widgets (título, texto, imagem, botão, cards, depoimento, FAQ, formulário, divisória e espaçador).
+4. Use os controles de arrastar e soltar nos widgets e as setas para reordenar seções.
+5. **Salvar rascunho** preserva o site em produção. **Publicar** atualiza o conteúdo em `/`. O histórico permite recuperar versões anteriores **como rascunho**.
+6. Antes da primeira publicação com o editor, o site institucional original permanece visível. A primeira publicação substitui o layout público pelo documento do editor, portanto revise a prévia cuidadosamente antes de publicar.
+
+O documento é armazenado no D1, em `site_pages` e `site_page_versions`. Apenas `role=admin` pode atualizar e publicar. A API valida tipos, extensões, comprimentos, cores e URLs e não aceita scripts ou HTML arbitrário.
+
+### Assinaturas mensais
+
+1. Abra **Assinaturas mensais** ou `/assinaturas`.
+2. Selecione associados ativos, defina número de parcelas (padrão 6, máximo 36), mês inicial e dia de vencimento (padrão 10, editável entre 1 e 28).
+3. Escolha um valor fixo por mensalidade ou deixe vazio para usar primeiro o valor especial do associado e, se não houver, o valor padrão da mensalidade em Configurações.
+4. O Worker tem um **Cron Trigger `0 6 * * *`** no `wrangler.jsonc`. Ele processa os planos diariamente às 06:00 UTC, emitindo uma cobrança apenas quando chega a competência de cada mês. Uma restrição `UNIQUE(member_id,period)` impede cobrança duplicada na mesma competência. O dia de vencimento é mantido inclusive em finais de semana.
+5. Para antecipar a rotina, use **Processar agora**. É possível pausar/retomar planos e alterar seu dia de vencimento para **parcelas futuras**, ou alterar o vencimento de uma cobrança pendente específica em Mensalidades.
+6. Criar a cobrança e gerar QR Pix estático **não confirma pagamento**. A tesouraria confere o extrato e realiza a baixa. O desenvolvimento da integração com a API bancária fica reservado para uma etapa futura.
+
+**Atenção ao Cloudflare:** Cron Triggers precisam aparecer em **Worker → Triggers** depois do deploy. Se o projeto estiver configurado para ignorar o `wrangler.jsonc`, ajuste a configuração no painel. Não assuma que o agendamento está ativo sem confirmar no Cloudflare.
+
+### Importação e exportação de planilhas
+
+- Acesse `/importar`. Converta a planilha do Excel ou Google Sheets para **CSV UTF-8**.
+- Colunas obrigatórias: `Nome`, `E-mail`. Opcionais: `Telefone`, `Empresa`, `Segmento`, `Cidade`, `Status`, `Mensalidade`, `Observações`.
+- O sistema mostra uma prévia, valida as linhas, envia lotes de até 100 registros, ignora e-mails já existentes e registra auditoria. Dados importados não são enviados ao repositório GitHub.
+- Exporte associados, cobranças e lançamentos financeiros em CSV pelos links do painel. Faça backup regular do próprio banco D1 na Cloudflare para garantir uma cópia completa, além dos relatórios CSV.
+- Para importar movimentações financeiras históricas, faça uma conferência do formato de sua planilha antes de qualquer lançamento ou baixa retroativa; **a importação de CSV desta versão cadastra associados**, não confirma pagamentos.
+
+### Dados bancários e avisos
+
+- Em **Configurações → Dados do Pix**, cadastre **somente a chave Pix oficial do grupo**, recebedor, cidade e opcionalmente banco, agência, conta, tipo, CPF/CNPJ e descrição.
+- Clique em **Salvar configurações** e depois em **Testar Pix (R$ 1,00)**. Confira o recebedor no aplicativo bancário antes de disponibilizar cobranças reais.
+- Para cada cobrança pendente, Mensalidades possui botões **E-mail** e **WhatsApp**. Sem provedor conectado, abre uma mensagem pronta no aplicativo para revisão e envio manual. O sistema não afirma que esse aviso já foi enviado.
+- Opcionalmente configure **somente no Cloudflare Worker → Settings → Variables and Secrets**:
+  - `RESEND_API_KEY` (Secret) e `RESEND_FROM` (endereço remetente verificado) para envio por e-mail via Resend;
+  - `WHATSAPP_ACCESS_TOKEN` (Secret) e `WHATSAPP_PHONE_NUMBER_ID` (identificador de telefone Meta) para envio via Meta WhatsApp Business API. Nesse caso, é necessário ter um modelo aprovado chamado `cib_mensalidade` (idioma `pt_BR`, quatro parâmetros: nome, competência, valor e vencimento).
+- **Avisos automáticos em massa e confirmação bancária automática não estão ativados nesta versão.** Os botões de aviso permitem envio manual ou com provedor quando configurado. Para evitar mensagens não solicitadas, valide antes as permissões, o consentimento quando aplicável e a base legal para comunicação.
+- Credenciais de banco e provedores nunca devem ser adicionadas ao GitHub.
+
+### Verificações de desenvolvimento
+
+```sh
+npm install
+npm run check
+```
+
+O comando roda build, checagem de TypeScript da API, testes Pix, esquema D1, recorrências, CSV e validação dos documentos do editor. O workflow `verify-cloudflare-deployment.yml` compara a resposta publicada em `/api/version` com a marca da versão 2, consulta `/api/public-page`, `/api/health` e `/api/setup-status`. Uma compilação aprovada no GitHub **não substitui** a confirmação no painel da Cloudflare para agendamentos e segredos.

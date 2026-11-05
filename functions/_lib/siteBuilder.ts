@@ -17,6 +17,7 @@ export type BuilderSection = {
 export type BuilderPage = {
   title: string; font: string; headerColor: string; accentColor: string;
   logoImage?: string; brandName?: string; brandSubtitle?: string; footerText?: string;
+  privacyTitle?: string; privacyText?: string;
   menuItems?: Array<{id: string;label: string;href: string}>;
   sections: BuilderSection[];
 };

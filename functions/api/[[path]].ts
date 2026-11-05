@@ -256,6 +256,14 @@ async function handle(context: Context): Promise<Response> {
   const isManager = user.role === 'admin' || user.role === 'finance';
 
   // Editor visual: apenas o administrador tem autorização para rascunhar e publicar.
+  if (is('POST','pix','test')) {
+    if(user.role!=='admin')fail('Acesso restrito ao administrador',403);
+    const data=await body(request),settings=await getSettings(db);
+    if(!settings.pix_key||!settings.pix_receiver||!settings.pix_city)fail('Cadastre e salve a chave Pix, titular e cidade antes do teste',409);
+    const amount=data.amount_cents===undefined?100:cents(data.amount_cents);
+    const code=buildPixCode({key:settings.pix_key,receiver:settings.pix_receiver,city:settings.pix_city,amountCents:amount,txid:'CIBTESTE'});
+    return json({code,receiver:settings.pix_receiver,amount_cents:amount,note:'QR Code de verificação. Não identifica pagamento nem cria cobrança.'});
+  }
   if (is('GET','builder','page')) {
     if (user.role!=='admin') fail('Editor restrito ao administrador principal',403);
     const row = await db.prepare("SELECT * FROM site_pages WHERE slug='home'").first<any>();

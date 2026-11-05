@@ -365,6 +365,51 @@ async function handle(context: Context): Promise<Response> {
     return json({success:true});
   }
 
+  // Importação de mensalidades históricas: não altera cobranças existentes.
+  if (is('POST','imports','charges')) {
+    if(user.role!=='admin')fail('Acesso restrito à administração',403);
+    const input=await body(request,150_000);
+    if(!Array.isArray(input.rows)||input.rows.length<1||input.rows.length>100)fail('Envie de 1 a 100 mensalidades por lote');
+    let created=0,skipped=0;
+    for(const row of input.rows){
+      if(!row||typeof row!=='object')fail('Linha inválida');
+      const e=email(row.member_email),member=await db.prepare('SELECT id FROM members WHERE email=?').bind(e).first<{id:string}>();
+      if(!member)fail(`Associe primeiro o e-mail ${e} antes de importar suas mensalidades`,409);
+      const period=validPeriod(row.period),due=validDate(row.due_date),amount=cents(row.amount_cents);
+      const status=['pending','paid','canceled'].includes(row.status)?row.status:'pending';
+      if(status==='paid'&&input.confirm_historical_paid!==true)fail('Confirme expressamente a importação de mensalidades históricas já pagas',403);
+      const now=NOW(),paidAt=status==='paid'?validDate(row.paid_on||due)+'T12:00:00Z':null;
+      const result=await db.prepare('INSERT OR IGNORE INTO charges(id,member_id,period,due_date,amount_cents,status,paid_at,paid_by,payment_method,payment_reference,notes,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)')
+        .bind(uuid(),member.id,period,due,amount,status,paidAt,status==='paid'?user.id:null,status==='paid'?'imported':null,str(row.reference,160),'Importado de planilha histórica, conferir documentos de origem',now,now).run();
+      if(result.meta?.changes)created++;else skipped++;
+    }
+    await audit(db,user,'import_historical_charges','charges','batch',{created,skipped});
+    return json({created,skipped});
+  }
+  // Importação de receitas extras e despesas (separadas das mensalidades).
+  if (is('POST','imports','transactions')) {
+    if(user.role!=='admin')fail('Acesso restrito à administração',403);
+    const input=await body(request,150_000);
+    if(!Array.isArray(input.rows)||input.rows.length<1||input.rows.length>100)fail('Envie de 1 a 100 lançamentos por lote');
+    let created=0,skipped=0;
+    for(const row of input.rows){
+      if(!row||typeof row!=='object')fail('Linha inválida');
+      if(!['income','expense'].includes(row.kind))fail('Tipo deve ser income ou expense');
+      const kind=row.kind as 'income'|'expense',occurred=validDate(row.occurred_on);
+      const amount=cents(row.amount_cents),category=required(row.category,'a categoria',80),description=required(row.description,'a descrição',250);
+      const reference=str(row.reference,160);
+      // Deduplicação conservadora pelo conjunto de campos estáveis da planilha.
+      const existing=await db.prepare("SELECT id FROM transactions WHERE kind=? AND occurred_on=? AND amount_cents=? AND category=? AND description=? AND COALESCE(reference,'')=? LIMIT 1")
+        .bind(kind,occurred,amount,category,description,reference).first<{id:string}>();
+      if(existing){skipped++;continue}
+      await db.prepare('INSERT INTO transactions(id,kind,amount_cents,category,description,party,occurred_on,payment_method,reference,created_at,created_by) VALUES(?,?,?,?,?,?,?,?,?,?,?)')
+        .bind(uuid(),kind,amount,category,description,str(row.party,120),occurred,str(row.payment_method,40),reference,NOW(),user.id).run();
+      created++;
+    }
+    await audit(db,user,'import_transactions','transactions','batch',{created,skipped});
+    return json({created,skipped});
+  }
+
   // Migração a partir de Excel/Google Sheets: CSV é analisado no cliente,
   // enviado em lotes e aceito somente para o administrador.
   if (is('POST','members','import')) {

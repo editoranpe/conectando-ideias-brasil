@@ -102,6 +102,7 @@ const defaults: Record<string, string> = {
   meeting_place: '',
   pix_bank_name: '', pix_bank_code: '', pix_branch: '', pix_account: '', pix_account_type: 'corrente', pix_tax_id: '', pix_description: 'Cobrança da organização',
   pix_display_bank_details: 'false', billing_auto_notices: 'false',
+  portal_primary_color: '#393c86', portal_accent_color: '#f00483',
 };
 async function getSettings(db: DB): Promise<Record<string, string>> {
   const rows = (await db.prepare('SELECT key,value FROM settings').all<{key: string; value: string}>()).results;

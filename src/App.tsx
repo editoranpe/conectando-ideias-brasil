@@ -3,6 +3,7 @@ import { Navigate, Route, Routes, Link, useNavigate, useSearchParams } from 'rea
 import { ArrowLeft, ArrowRight, Eye, EyeOff, LockKeyhole, ShieldCheck, UserRoundPlus } from 'lucide-react';
 import PublicSite, { Privacy } from './Site';
 import Dashboard from './Dashboard';
+import VisualEditor from './VisualEditor';
 import { api, User } from './api';
 
 function PortalEntry({activate = false}:{activate?:boolean}) {
@@ -39,4 +40,11 @@ function Protected(){
   return <Dashboard user={user} onLogout={async()=>{await api('logout','POST').catch(()=>{});location.href='/entrar';}}/>;
 }
 
-export default function App(){return <Routes><Route path="/" element={<PublicSite/>}/><Route path="/privacidade" element={<Privacy/>}/><Route path="/entrar" element={<PortalEntry/>}/><Route path="/ativar" element={<PortalEntry activate/>}/><Route path="/painel" element={<Protected/>}/><Route path="/demonstracao" element={<Dashboard demo user={{id:'demo',email:'demonstracao@conectandoideiasbrasil.com',role:'admin',member_id:'demo'}} onLogout={()=>{location.href='/';}}/>}/><Route path="*" element={<Navigate to="/" replace/>}/></Routes>}
+function ProtectedEditor(){
+ const [allowed,setAllowed]=useState<'loading'|'yes'|'no'>('loading');
+ useEffect(()=>{api<{user:User}>('me').then(x=>setAllowed(x.user.role==='admin'?'yes':'no')).catch(()=>setAllowed('no'));},[]);
+ if(allowed==='loading')return <div className="page-loading">Carregando editor...</div>;
+ return allowed==='yes'?<VisualEditor/>:<Navigate to="/entrar" replace/>;
+}
+
+export default function App(){return <Routes><Route path="/" element={<PublicSite/>}/><Route path="/privacidade" element={<Privacy/>}/><Route path="/entrar" element={<PortalEntry/>}/><Route path="/ativar" element={<PortalEntry activate/>}/><Route path="/painel" element={<Protected/>}/><Route path="/editar-site" element={<ProtectedEditor/>}/><Route path="/demonstracao" element={<Dashboard demo user={{id:'demo',email:'demonstracao@conectandoideiasbrasil.com',role:'admin',member_id:'demo'}} onLogout={()=>{location.href='/';}}/>}/><Route path="*" element={<Navigate to="/" replace/>}/></Routes>}

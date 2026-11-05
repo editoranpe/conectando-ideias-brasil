@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Activity, ArrowDownLeft, ArrowRight, ArrowUpRight, BadgeCheck, Banknote, BellRing, CalendarDays, Check, ChevronDown, CircleDollarSign, ClipboardList, Copy, Download, FileClock, Handshake, LayoutDashboard, LogOut, Menu, Plus, QrCode, Receipt, Search, Settings2, ShieldCheck, TrendingUp, UserRoundPlus, Users, Wallet, X } from 'lucide-react';
+import { ArrowDownLeft, ArrowRight, ArrowUpRight, Banknote, BellRing, CalendarDays, Check, CircleDollarSign, Copy, Download, FileClock, LayoutDashboard, LogOut, Menu, Plus, QrCode, Receipt, Search, Settings2, ShieldCheck, UserRoundPlus, Users, Wallet, X } from 'lucide-react';
 import QRCode from 'qrcode';
 import { api, Application, brl, Charge, humanDate, Member, monthNow, PaymentReport, Settings, todayBR, Transaction, User, statusCharge } from './api';
 

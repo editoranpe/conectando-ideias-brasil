@@ -21,7 +21,7 @@ const demoTransactions:Transaction[] = [
   {id:'t3',kind:'income',amount_cents:7500,category:'Patrocínio',description:'Contribuição pontual',party:'Parceiro demonstrativo',occurred_on:todayBR(),payment_method:'pix',reference:''},
 ];
 const demoApplications:Application[] = [{id:'a1',name:'Gabriela Almeida',email:'gabriela@exemplo.com',phone:'(47) 99999-1111',company:'Almeida Criativa',message:'Solicito uma demonstração.',status:'new',created_at:new Date().toISOString()}];
-const initialSettings:Settings = {group_name:'Sua Organização',monthly_amount_cents:'4000',due_day:'10',pix_key:'',pix_receiver:'',pix_city:'',contact_email:'',contact_whatsapp:'',meeting_place:''};
+const initialSettings:Settings = {group_name:'Sua Organização',monthly_amount_cents:'4000',due_day:'10',pix_key:'',pix_receiver:'',pix_city:'',contact_email:'',contact_whatsapp:'',meeting_place:'',portal_primary_color:'#393c86',portal_accent_color:'#f00483'};
 const navGroups:{name:string;items:{id:Page;title:string;icon:React.ComponentType<{size?:number}>}[]}[] = [
   {name:'GERENCIAMENTO',items:[{id:'overview',title:'Visão geral',icon:LayoutDashboard},{id:'members',title:'Pessoas',icon:Users},{id:'charges',title:'Mensalidades',icon:Receipt},{id:'ledger',title:'Fluxo de caixa',icon:Wallet}]},
   {name:'RELACIONAMENTO',items:[{id:'applications',title:'Inscrições',icon:UserRoundPlus},{id:'reports',title:'Avisos de pagamento',icon:BellRing}]},

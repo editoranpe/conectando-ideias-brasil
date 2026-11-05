@@ -1,4 +1,4 @@
-import React, {useEffect,useState} from 'react';
+import {useEffect,useState} from 'react';
 import {Link} from 'react-router-dom';
 import { ArrowLeft, ArrowUp, ArrowDown, Eye, Save, Send, Plus, Trash2, Monitor, Smartphone, GripVertical, History, Image as ImageIcon } from 'lucide-react';
 import {api} from './api';

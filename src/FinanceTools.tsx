@@ -2,7 +2,7 @@ import {useEffect,useState} from 'react';
 import {Link} from 'react-router-dom';
 import {ArrowLeft,Download,Upload,Check,Play,Pause,CalendarDays,Users,Mail,MessageCircle,FileSpreadsheet} from 'lucide-react';
 import {api,type Member,brl,monthNow} from './api';
-import {membersFromCsv,type ImportedMember} from './csvImport';
+import {membersFromCsv,chargesFromCsv,transactionsFromCsv,type ImportedMember,type ImportedCharge,type ImportedTransaction} from './csvImport';
 
 type Plan={id:string;title:string;start_period:string;next_period:string;repetitions:number;processed:number;due_day:number;status:string;member_count:number;amount_cents:number|null;channels:string};
 export default function FinanceTools({mode}:{mode:'recurrences'|'import'}){
@@ -10,7 +10,8 @@ export default function FinanceTools({mode}:{mode:'recurrences'|'import'}){
  const [title,setTitle]=useState('Mensalidade dos associados'),[repetitions,setRepetitions]=useState(6);
  const [start,setStart]=useState(monthNow()),[day,setDay]=useState(10),[amount,setAmount]=useState('');
  const [channels,setChannels]=useState('portal'),[busy,setBusy]=useState(false),[message,setMessage]=useState('');
- const [preview,setPreview]=useState<ImportedMember[]>([]),[errors,setErrors]=useState<string[]>([]),[filename,setFilename]=useState('');
+ const [importKind,setImportKind]=useState<'members'|'charges'|'transactions'>('members'),[historicalPaid,setHistoricalPaid]=useState(false);
+ const [preview,setPreview]=useState<Array<ImportedMember|ImportedCharge|ImportedTransaction>>([]),[errors,setErrors]=useState<string[]>([]),[filename,setFilename]=useState('');
  const reload=async()=>{const m=await api<{members:Member[]}>('members');setMembers(m.members);if(mode==='recurrences'){const p=await api<{plans:Plan[]}>('recurrences');setPlans(p.plans)}};
  useEffect(()=>{void reload().catch(e=>setMessage((e as Error).message));},[mode]);
  const active=members.filter(m=>m.status==='active');
@@ -21,9 +22,15 @@ export default function FinanceTools({mode}:{mode:'recurrences'|'import'}){
   await run(async()=>{await api('recurrences','POST',{title,repetitions,start_period:start,due_day:day,member_ids:selected,amount_cents:val,channels});setSelected([])},'Assinatura criada. A rotina diária do Cloudflare emitirá uma mensalidade por mês até completar o total.');
  };
  const changePlan=async(id:string,patch:Record<string,unknown>)=>{await run(()=>api(`recurrences/${id}`,'PATCH',patch),'Assinatura atualizada. As cobranças já emitidas não foram alteradas.')};
- const readFile=async(file?:File)=>{if(!file)return;setMessage('');setFilename(file.name);try{const data=membersFromCsv(await file.text());setPreview(data.rows);setErrors(data.errors);}catch(e){setMessage((e as Error).message);setPreview([]);setErrors([])}};
- const importMembers=async()=>{if(!preview.length)return;await run(async()=>{let created=0,skipped=0;for(let i=0;i<preview.length;i+=100){const result=await api<{created:number;skipped:number}>('members/import','POST',{rows:preview.slice(i,i+100)});created+=result.created;skipped+=result.skipped}setPreview([]);setErrors([]);setFilename('');setMessage(`Importação concluída: ${created} novos cadastros e ${skipped} duplicados ignorados.`);},'Importação concluída.');};
- return <div className="cib-finance-tools"><header className="cib-tools-header"><Link to="/painel"><ArrowLeft size={16}/> Voltar ao painel</Link><h1>{mode==='recurrences'?'Assinaturas e mensalidades recorrentes':'Importar e exportar associados'}</h1><p>{mode==='recurrences'?'Selecione os participantes e configure a emissão mensal de cobranças no Cloudflare.':'Migre seus cadastros atuais de Excel ou Google Sheets usando arquivos CSV.'}</p></header>
+ const readFile=async(file?:File)=>{if(!file)return;setMessage('');setFilename(file.name);try{const raw=await file.text();const data=importKind==='members'?membersFromCsv(raw):importKind==='charges'?chargesFromCsv(raw):transactionsFromCsv(raw);setPreview(data.rows);setErrors(data.errors);}catch(e){setMessage((e as Error).message);setPreview([]);setErrors([])}};
+ const submitImport=async()=>{if(!preview.length)return;if(importKind==='charges'&&preview.some(x=>(x as ImportedCharge).status==='paid')&&!historicalPaid){setMessage('Marque a confirmação explícita antes de importar mensalidades pagas.');return}
+   setBusy(true);setMessage('');try{let created=0,skipped=0;const endpoint=importKind==='members'?'members/import':importKind==='charges'?'imports/charges':'imports/transactions';
+    for(let i=0;i<preview.length;i+=100){const result=await api<{created:number;skipped:number}>(endpoint,'POST',{rows:preview.slice(i,i+100),confirm_historical_paid:historicalPaid});created+=result.created;skipped+=result.skipped}
+    setPreview([]);setErrors([]);setFilename('');setHistoricalPaid(false);setMessage(`Importação concluída: ${created} registros novos, ${skipped} duplicados ignorados.`);await reload();
+   }catch(e){setMessage((e as Error).message)}finally{setBusy(false)}
+  };
+
+ return <div className="cib-finance-tools"><header className="cib-tools-header"><Link to="/painel"><ArrowLeft size={16}/> Voltar ao painel</Link><h1>{mode==='recurrences'?'Assinaturas e mensalidades recorrentes':'Importar e exportar planilhas'}</h1><p>{mode==='recurrences'?'Selecione os participantes e configure a emissão mensal de cobranças no Cloudflare.':'Migre associados, mensalidades anteriores e lançamentos de caixa por CSV exportado do Excel ou Google Sheets.'}</p></header>
  {message&&<div className="cib-tools-alert" role="status">{message}</div>}
  {mode==='recurrences'?<div className="cib-tools-layout">
   <section className="cib-tools-card"><h2><CalendarDays size={20}/> Nova assinatura</h2>
@@ -42,17 +49,21 @@ export default function FinanceTools({mode}:{mode:'recurrences'|'import'}){
    <div className="cib-tools-card-sub"><h3>Avisos de pagamento</h3><p><Mail size={16}/> E-mail: integração via Resend, opcional.</p><p><MessageCircle size={16}/> WhatsApp: integração oficial Meta Business, opcional.</p><p>Na tela de mensalidades você também pode abrir mensagens prontas para envio manual, sem conexão com provedor.</p></div>
   </section>
  </div>:<div className="cib-tools-layout">
-  <section className="cib-tools-card"><h2><Upload size={20}/> Importar sua planilha</h2><p>Exporte sua planilha do Excel ou Google Sheets como <strong>CSV UTF-8</strong> e selecione o arquivo. É necessário ter as colunas <strong>Nome</strong> e <strong>E-mail</strong>; as demais são opcionais.</p>
+  <section className="cib-tools-card"><h2><Upload size={20}/> Importar sua planilha</h2><p>Exporte seu arquivo do Excel ou Google Sheets como <strong>CSV UTF-8</strong> e selecione o tipo de dados. Importe associados antes de mensalidades históricas.</p>
+   <label>O que você deseja importar?<select value={importKind} onChange={e=>{setImportKind(e.target.value as typeof importKind);setPreview([]);setErrors([]);setFilename('');setMessage('')}}><option value="members">Associados</option><option value="charges">Mensalidades históricas</option><option value="transactions">Receitas adicionais e despesas</option></select></label>
    <label className="cib-tools-file"><FileSpreadsheet size={25}/> Selecionar arquivo .csv<input type="file" accept=".csv,text/csv" onChange={e=>void readFile(e.target.files?.[0])}/></label>
-   <p className="cib-tools-help">Colunas aceitas: Nome, E-mail, Telefone, Empresa, Segmento, Cidade, Status, Mensalidade, Observações. O sistema ignora e-mails já cadastrados para não duplicar associados.</p>
+   <p className="cib-tools-help">{importKind==='members'?'Colunas: Nome, E-mail, Telefone, Empresa, Segmento, Cidade, Status, Mensalidade, Observações.':'Colunas: '+(importKind==='charges'?'E-mail, Competência, Vencimento, Valor (centavos), Situação, Pago em, Referência.':'Data, Tipo, Categoria, Descrição, Favorecido, Valor (centavos), Forma, Referência.')+' Os registros já importados são ignorados quando identificados como duplicados.'}</p>
    {filename&&<p><strong>Arquivo:</strong> {filename}</p>}
    {!!errors.length&&<div className="cib-tools-warnings"><strong>{errors.length} linha(s) com problema:</strong>{errors.slice(0,10).map((x,i)=><p key={i}>{x}</p>)}</div>}
-   {!!preview.length&&<><h3>Pré-visualização: {preview.length} associados válidos</h3><div className="cib-tools-preview"><table><thead><tr><th>Nome</th><th>E-mail</th><th>Empresa</th><th>Mensalidade</th></tr></thead><tbody>{preview.slice(0,12).map((m,i)=><tr key={i}><td>{m.name}</td><td>{m.email}</td><td>{m.company}</td><td>{m.monthly_fee_cents==null?'Padrão':brl(m.monthly_fee_cents)}</td></tr>)}</tbody></table></div><button disabled={busy} className="button button-primary cib-tools-primary" onClick={()=>void importMembers()}><Check size={17}/> Confirmar importação</button></>}
+   {!!preview.length&&<><h3>Pré-visualização: {preview.length} registros válidos</h3><div className="cib-tools-preview"><table><thead><tr>{importKind==='members'?<><th>Nome</th><th>E-mail</th><th>Empresa</th><th>Mensalidade</th></>:importKind==='charges'?<><th>Associado</th><th>Competência</th><th>Vencimento</th><th>Status</th><th>Valor</th></>:<><th>Data</th><th>Descrição</th><th>Categoria</th><th>Valor</th></>}</tr></thead><tbody>{preview.slice(0,12).map((m,i)=>{if(importKind==='members'){const x=m as ImportedMember;return <tr key={i}><td>{x.name}</td><td>{x.email}</td><td>{x.company}</td><td>{x.monthly_fee_cents==null?'Padrão':brl(x.monthly_fee_cents)}</td></tr>}if(importKind==='charges'){const x=m as ImportedCharge;return <tr key={i}><td>{x.member_email}</td><td>{x.period}</td><td>{x.due_date}</td><td>{x.status}</td><td>{brl(x.amount_cents)}</td></tr>}const x=m as ImportedTransaction;return <tr key={i}><td>{x.occurred_on}</td><td>{x.description}</td><td>{x.category}</td><td>{brl(x.amount_cents)}</td></tr>})}</tbody></table></div>
+   {importKind==='charges'&&preview.some(x=>(x as ImportedCharge).status==='paid')&&<label style={{display:'flex',flexDirection:'row',alignItems:'center'}}><input type="checkbox" checked={historicalPaid} onChange={e=>setHistoricalPaid(e.target.checked)}/> Confirmo que verifiquei os registros antigos marcados como pagos e autorizo sua importação como histórico.</label>}
+   {importKind==='transactions'&&<p className="cib-tools-warnings">Importe aqui apenas receitas adicionais e despesas. Não importe mensalidades já registradas como pagas, para não duplicar o saldo financeiro.</p>}
+   <button disabled={busy} className="button button-primary cib-tools-primary" onClick={()=>void submitImport()}><Check size={17}/> Confirmar importação</button></>}
   </section>
   <section className="cib-tools-card"><h2><Download size={20}/> Exportar e fazer backup</h2><p>Baixe os dados para Excel, Google Sheets ou migração futura. Os relatórios são gerados diretamente a partir do D1.</p>
    <div className="cib-tools-exports"><a href="/api/reports/members.csv"><Download size={17}/> Associados (.csv)</a><a href="/api/reports/charges.csv"><Download size={17}/> Cobranças (.csv)</a><a href="/api/reports/transactions.csv"><Download size={17}/> Receitas e despesas (.csv)</a></div>
    <h3>Modelo de importação</h3><p>Baixe um modelo vazio com o cabeçalho correto para preencher sua planilha atual.</p>
-   <a className="cib-tools-template" download="modelo-associados-cib.csv" href={"data:text/csv;charset=utf-8,"+encodeURIComponent("Nome;E-mail;Telefone;Empresa;Segmento;Cidade;Status;Mensalidade;Observações\n")}>Baixar modelo CSV</a>
+   <a className="cib-tools-template" download={`modelo-${importKind}-cib.csv`} href={"data:text/csv;charset=utf-8,"+encodeURIComponent(importKind==='members'?"Nome;E-mail;Telefone;Empresa;Segmento;Cidade;Status;Mensalidade;Observações\n":importKind==='charges'?"E-mail;Competência;Vencimento;Valor (centavos);Situação;Pago em;Referência\n":"Data;Tipo;Categoria;Descrição;Favorecido;Valor (centavos);Forma;Referência\n")}>Baixar modelo CSV</a>
    <div className="cib-tools-card-sub"><h3>Importação segura</h3><p>Nenhum arquivo é publicado no site. A importação exige o acesso do administrador e registra a operação no histórico de auditoria.</p><p>Antes de importar os dados reais, confira a finalidade e a base legal de tratamento dos dados dos associados conforme a LGPD.</p></div>
   </section>
  </div>}

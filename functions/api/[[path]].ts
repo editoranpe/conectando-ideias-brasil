@@ -152,6 +152,10 @@ async function handle(context: Context): Promise<Response> {
     const s = await getSettings(db);
     return json({ group_name: s.group_name, monthly_amount_cents: Number(s.monthly_amount_cents), due_day: Number(s.due_day), meeting_place: s.meeting_place, contact_email: s.contact_email, contact_whatsapp: s.contact_whatsapp, pix_available: !!(s.pix_key && s.pix_receiver) });
   }
+  if(is('GET','media','status')) {
+    const mediaTable=await db.prepare("SELECT COUNT(*) AS found FROM sqlite_master WHERE type='table' AND name='site_media_assets'").first<{found:number}>();
+    return json({ready:Number(mediaTable?.found||0)===1,storage:'cloudflare-d1',format:'image/webp',max_bytes:921600});
+  }
   // Site media files are read-only for visitors; uploads require an admin session.
   // Images are immutable, cached on the edge and served without exposing D1 internals.
   if(method==='GET' && path[0]==='media' && path.length===2 && path[1].endsWith('.webp')){

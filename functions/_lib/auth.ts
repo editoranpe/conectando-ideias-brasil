@@ -1,4 +1,9 @@
 const encoder = new TextEncoder();
+/** workerd caps PBKDF2 iterations at 100,000; a larger count throws NotSupportedError.
+ * Keep this at the maximum supported value. Use a long, unique password and rate limiting.
+ * If upgrading hashing in the future, version the stored format and support migration.
+ */
+export const PASSWORD_HASH_ITERATIONS = 100_000;
 export const NOW = () => new Date().toISOString();
 export const uuid = () => crypto.randomUUID();
 
@@ -19,7 +24,7 @@ export async function passwordHash(password: string, salt?: string): Promise<{ s
   if (password.length < 12 || password.length > 128) throw new Error('A senha deve ter de 12 a 128 caracteres');
   const passwordSalt = salt ?? randomToken();
   const key = await crypto.subtle.importKey('raw', encoder.encode(password), { name: 'PBKDF2' }, false, ['deriveBits']);
-  const derived = await crypto.subtle.deriveBits({ name: 'PBKDF2', hash: 'SHA-256', salt: unhex(passwordSalt) as BufferSource, iterations: 310_000 }, key, 256);
+  const derived = await crypto.subtle.deriveBits({ name: 'PBKDF2', hash: 'SHA-256', salt: unhex(passwordSalt) as BufferSource, iterations: PASSWORD_HASH_ITERATIONS }, key, 256);
   return { salt: passwordSalt, hash: hex(new Uint8Array(derived)) };
 }
 export async function verifyPassword(password: string, salt: string, expected: string): Promise<boolean> {

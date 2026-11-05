@@ -37,6 +37,9 @@ jobs:
             echo "Tentativa ${attempt}/24: site=${site_status}, versão=${version_status}, D1=${health_status}, setup=${setup_status}, page builder=${page_status}, mídia=${media_status}, galeria protegida=${library_status}"
             if [[ "${site_status}" == "200" && "${version_status}" == "200" && "${health_status}" == "200" && "${setup_status}" == "200" && "${page_status}" == "200" && "${media_status}" == "200" && "${library_status}" == "401" ]] &&
                grep -qi 'Conectando Ideias Brasil' /tmp/cib-site.html &&
+               grep -q 'cib-editor-release' /tmp/cib-site.html &&
+               grep -q 'flat-builder-v3' /tmp/cib-site.html &&
+               grep -q 'flat-builder-v3' /tmp/cib-version.json &&
                grep -q 'cloudflare-worker' /tmp/cib-version.json &&
                grep -q '2026-11-05-cib-v2' /tmp/cib-version.json &&
                grep -q 'workers-pbkdf2-100k-fix' /tmp/cib-version.json &&

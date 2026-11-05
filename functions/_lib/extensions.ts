@@ -33,6 +33,18 @@ export const EXTENSION_SCHEMA = [
     charge_id TEXT NOT NULL REFERENCES charges(id) ON DELETE CASCADE,
     created_at TEXT NOT NULL, PRIMARY KEY(plan_id,charge_id)
   )`,
+  `CREATE TABLE IF NOT EXISTS site_media_assets (
+    id TEXT PRIMARY KEY,
+    filename TEXT NOT NULL,
+    mime_type TEXT NOT NULL CHECK(mime_type='image/webp'),
+    width INTEGER NOT NULL CHECK(width BETWEEN 1 AND 4096),
+    height INTEGER NOT NULL CHECK(height BETWEEN 1 AND 4096),
+    size_bytes INTEGER NOT NULL CHECK(size_bytes BETWEEN 1 AND 921600),
+    data BLOB NOT NULL,
+    created_at TEXT NOT NULL,
+    uploaded_by TEXT REFERENCES users(id)
+  )`,
+  `CREATE INDEX IF NOT EXISTS site_media_created ON site_media_assets(created_at)`,
   `CREATE TABLE IF NOT EXISTS notice_logs (
     id TEXT PRIMARY KEY, charge_id TEXT NOT NULL REFERENCES charges(id),
     channel TEXT NOT NULL, status TEXT NOT NULL,
@@ -52,8 +64,8 @@ export type D1Like = {
   batch: (queries: D1Query[]) => Promise<unknown>;
 };
 export async function ensureExtensionSchema(db: D1Like): Promise<void> {
-  const result = await db.prepare("SELECT COUNT(*) AS total FROM sqlite_master WHERE type='table' AND name IN ('site_pages','site_page_versions','recurring_plans','recurring_plan_members','recurring_charge_links','notice_logs')").first<{total:number}>();
-  if (Number(result?.total || 0) !== 6) {
+  const result = await db.prepare("SELECT COUNT(*) AS total FROM sqlite_master WHERE type='table' AND name IN ('site_pages','site_page_versions','recurring_plans','recurring_plan_members','recurring_charge_links','notice_logs','site_media_assets')").first<{total:number}>();
+  if (Number(result?.total || 0) !== 7) {
     await db.batch(EXTENSION_SCHEMA.map(sql => db.prepare(sql)));
   }
 }

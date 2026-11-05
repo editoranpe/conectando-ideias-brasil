@@ -1,7 +1,7 @@
 import { buildPixCode } from '../_lib/pix';
 import { INITIAL_SCHEMA_STATEMENTS } from '../_lib/schema';
 import { ensureExtensionSchema } from '../_lib/extensions';
-import { runDuePlans, currentMonthBR, plannedMonths } from '../_lib/recurring';
+import { runDuePlans, plannedMonths } from '../_lib/recurring';
 import { validatePage } from '../_lib/siteBuilder';
 import { NOW, uuid, sha256, randomToken, passwordHash, verifyPassword, readSessionCookie, sessionCookie, expireCookie } from '../_lib/auth';
 

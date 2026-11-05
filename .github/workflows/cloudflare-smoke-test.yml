@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - '.github/workflows/cloudflare-smoke-test.yml'
+      - 'dist/index.html'
   workflow_dispatch:
 
 permissions:
@@ -23,8 +24,8 @@ jobs:
           echo "Homepage HTTP: $code"
           head -c 280 /tmp/cib-home.html 2>/dev/null || true
           echo
-          if [ "$code" != '200' ] || ! grep -qi 'Conectando Ideias Brasil' /tmp/cib-home.html; then
-            echo 'Homepage not yet serving the Conectando Ideias Brasil website.'
+          if [ "$code" != '200' ] || ! grep -qi 'Conectando Ideias Brasil' /tmp/cib-home.html || ! grep -q 'id="root"' /tmp/cib-home.html; then
+            echo 'Homepage not yet serving the FULL React version of Conectando Ideias Brasil.'
             exit 1
           fi
           health=$(curl -L --silent --show-error --max-time 25 -o /tmp/cib-health.json -w '%{http_code}' "$SITE/api/health" || true)

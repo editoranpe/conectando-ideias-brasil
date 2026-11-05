@@ -99,7 +99,7 @@ export function CibWidgetView({widget:w,editing=false}:{widget:CibWidget;editing
  if(w.type==='features')return <div className="cib-widget-features" style={style}><h2>{w.title}</h2><div className="cib-feature-grid">{(w.items||[]).map((item,i)=><article key={i}><span className="cib-feature-icon"><IconTile name={item.icon||'sparkles'}/></span><h3>{item.title}</h3><p>{item.text}</p></article>)}</div></div>;
  if(w.type==='iconGrid')return <IconGrid widget={w}/>;
  if(w.type==='testimonials')return <TestimonialGrid widget={w}/>;
- if(w.type==='imageText')return <ImageTextBlock widget={w}/>
+ if(w.type==='imageText')return <ImageTextBlock widget={w} editing={editing}/>
  if(w.type==='quote')return <blockquote className="cib-widget-quote" style={style}><h2>{w.title}</h2><p>“{w.text}”</p></blockquote>;
  if(w.type==='faq')return <div className="cib-widget-faq" style={style}><h2>{w.title}</h2>{(w.items||[]).map((item,i)=><details key={i}><summary>{item.title}</summary><p>{item.text}</p></details>)}</div>;
  if(w.type==='signup')return editing?<div className="cib-signup cib-signup-mock"><h2>{w.title}</h2><p>{w.text}</p><div className="cib-signup-row"><input disabled placeholder="Nome completo"/><input disabled placeholder="E-mail"/></div><div className="cib-signup-row"><input disabled placeholder="WhatsApp"/><input disabled placeholder="Empresa"/></div><span>Formulário de adesão (interativo no site publicado)</span></div>:<Signup w={w}/>;

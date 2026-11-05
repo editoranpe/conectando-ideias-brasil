@@ -41,7 +41,9 @@ export default {
     await ensureExtensionSchema(env.DB);
     const result = await runDuePlans(env.DB);
     console.log('NPE_RECURRENCE_RUN', result);
-    const notices = await deliverScheduledNotices({DB:env.DB,RESEND_API_KEY:env.RESEND_API_KEY,RESEND_FROM:env.RESEND_FROM,WHATSAPP_ACCESS_TOKEN:env.WHATSAPP_ACCESS_TOKEN,WHATSAPP_PHONE_NUMBER_ID:env.WHATSAPP_PHONE_NUMBER_ID},env.SITE_ORIGIN||'https://npe-white-label-demo.workers.dev');
-    console.log('NPE_NOTICES_RUN', notices);
+    if (env.SITE_ORIGIN && /^https:\/\/[^/]+\.[^/]+/i.test(env.SITE_ORIGIN) && !/REPLACE|YOUR_SUBDOMAIN/i.test(env.SITE_ORIGIN)) {
+      const notices = await deliverScheduledNotices({DB:env.DB,RESEND_API_KEY:env.RESEND_API_KEY,RESEND_FROM:env.RESEND_FROM,WHATSAPP_ACCESS_TOKEN:env.WHATSAPP_ACCESS_TOKEN,WHATSAPP_PHONE_NUMBER_ID:env.WHATSAPP_PHONE_NUMBER_ID},env.SITE_ORIGIN.replace(/\/$/,''));
+      console.log('NPE_NOTICES_RUN', notices);
+    } else console.log('NPE_NOTICES_DISABLED: configure SITE_ORIGIN before enabling automated reminders');
   },
 };

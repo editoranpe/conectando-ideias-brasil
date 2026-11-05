@@ -30,7 +30,7 @@ export function validatePage(input: unknown): input is BuilderPage {
   const p = input as BuilderPage;
   if (!textLen(p.title,120) || typeof p.title!=='string' || !['sans','serif','modern'].includes(p.font) ||
       !safeColor(p.headerColor) || !safeColor(p.accentColor) ||
-      !textLen(p.brandName,90) || !textLen(p.brandSubtitle,45) || !textLen(p.footerText,240) ||
+      !textLen(p.brandName,90) || !textLen(p.brandSubtitle,45) || !textLen(p.footerText,240) || !textLen(p.privacyTitle,120) || !textLen(p.privacyText,12000) ||
       !safeUrl(p.logoImage) || (p.menuItems!==undefined && (
         !Array.isArray(p.menuItems) || p.menuItems.length>16 ||
         p.menuItems.some(link=>!link || typeof link.id!=='string' || !/^[\w-]{4,64}$/.test(link.id) ||

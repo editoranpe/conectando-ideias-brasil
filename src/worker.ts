@@ -13,6 +13,11 @@ type WorkerEnv = {
 export default {
   async fetch(request: Request, env: WorkerEnv): Promise<Response> {
     const path = new URL(request.url).pathname;
+    if (path === '/api/version') {
+      return new Response(JSON.stringify({ release: '2026-11-05-db-bootstrap-v1', runtime: 'cloudflare-worker' }), {
+        headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' },
+      });
+    }
     if (path === '/api' || path.startsWith('/api/')) {
       if (path === '/api') {
         return new Response(JSON.stringify({ error: 'Rota da API não encontrada' }), {

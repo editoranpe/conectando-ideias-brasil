@@ -109,7 +109,7 @@ O documento é armazenado no D1, em `site_pages` e `site_page_versions`. Apenas 
 - Opcionalmente configure **somente no Cloudflare Worker → Settings → Variables and Secrets**:
   - `RESEND_API_KEY` (Secret) e `RESEND_FROM` (endereço remetente verificado) para envio por e-mail via Resend;
   - `WHATSAPP_ACCESS_TOKEN` (Secret) e `WHATSAPP_PHONE_NUMBER_ID` (identificador de telefone Meta) para envio via Meta WhatsApp Business API. Nesse caso, é necessário ter um modelo aprovado chamado `cib_mensalidade` (idioma `pt_BR`, quatro parâmetros: nome, competência, valor e vencimento).
-- **Avisos automáticos em massa e confirmação bancária automática não estão ativados nesta versão.** Os botões de aviso permitem envio manual ou com provedor quando configurado. Para evitar mensagens não solicitadas, valide antes as permissões, o consentimento quando aplicável e a base legal para comunicação.
+- **Avisos automáticos são opt-in:** vêm desativados por padrão. Com as credenciais de um provedor cadastradas no Cloudflare, selecione e salve **Configurações → Cobranças → Envio automático de avisos → Ativado**. O Cron diário processará os avisos dos planos com canal e-mail/WhatsApp selecionado. O sistema registra cada envio por cobrança/canal e evita repetições, com limite de processamento por execução. Sem provedores configurados, nenhum aviso automático é enviado. Os botões de envio manual permanecem disponíveis. **Confirmação bancária automática ainda não está ativada:** a tesouraria continua conferindo o extrato e baixando pagamentos manualmente. Antes dos avisos automáticos, valide a base legal e preferências de comunicação dos associados.
 - Credenciais de banco e provedores nunca devem ser adicionadas ao GitHub.
 
 ### Verificações de desenvolvimento

@@ -556,7 +556,10 @@ async function handle(context: Context): Promise<Response> {
     for (const key of Object.keys(defaults)) {
       if (!(key in data)) continue;
       if (key === 'monthly_amount_cents') changes[key] = String(cents(data[key]));
-      else if (key === 'due_day') {
+      else if (key === 'portal_primary_color' || key === 'portal_accent_color') {
+        if (typeof data[key] !== 'string' || !/^#[0-9a-fA-F]{6}$/.test(data[key])) fail('Cor inválida: use hexadecimal de 6 dígitos');
+        changes[key] = data[key];
+      } else if (key === 'due_day') {
         const day = Number(data[key]);
         if (!Number.isInteger(day) || day < 1 || day > 28) fail('O dia de vencimento deve ser de 1 a 28');
         changes[key] = String(day);

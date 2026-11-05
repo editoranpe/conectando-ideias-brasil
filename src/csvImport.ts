@@ -55,3 +55,46 @@ export function membersFromCsv(input:string):{rows:ImportedMember[];errors:strin
  }
  return {rows,errors};
 }
+
+export type ImportedCharge={member_email:string;period:string;due_date:string;amount_cents:number;status:'pending'|'paid'|'canceled';paid_on:string|null;reference:string};
+export type ImportedTransaction={kind:'income'|'expense';occurred_on:string;amount_cents:number;category:string;description:string;party:string;payment_method:string;reference:string};
+function readTable(input:string){const all=parseCsv(input);if(all.length<2)throw Error('Informe um CSV com cabeçalho e pelo menos uma linha');const headers=all[0].map(normalize);return {headers,records:all.slice(1),field:(head:string[],row:string[])=>{const i=headers.findIndex(h=>head.map(normalize).includes(h));return i<0?'':String(row[i]||'').trim();}};}
+function dateOnly(input:string){const value=input.slice(0,10);return /^20\d{2}-\d{2}-\d{2}$/.test(value)?value:'';}
+export function chargesFromCsv(input:string):{rows:ImportedCharge[];errors:string[]}{
+ const t=readTable(input),rows:ImportedCharge[]=[],errors:string[]=[];
+ for(const [i,row] of t.records.entries()){
+  const get=(h:string[])=>t.field(h,row);
+  const member_email=get(['e-mail','email','emaildoassociado']).toLowerCase(),period=get(['competencia','periodo','period']);
+  const due_date=dateOnly(get(['vencimento','data de vencimento','due_date']));
+  const value=get(['valorcentavos','valor','amount_cents']);
+  const idx=t.headers.findIndex(h=>['valorcentavos','valor','amountcents'].includes(h));
+  const amount=money(value,idx>=0&&t.headers[idx].includes('centav'));
+  const state=normalize(get(['situacao','status']));
+  const status:ImportedCharge['status']=['paid','pago','quitado'].includes(state)?'paid':['canceled','cancelado'].includes(state)?'canceled':'pending';
+  const paid_on= status==='paid'?dateOnly(get(['pagoem','data do pagamento','paid_on'])||due_date):null;
+  if(!/^\S+@\S+\.\S+$/.test(member_email)||!/^20\d{2}-(0[1-9]|1[0-2])$/.test(period)||!due_date||amount===null||(status==='paid'&&!paid_on)){
+   errors.push(`Linha ${i+2}: e-mail, competência, vencimento ou valor inválido`);continue
+  }
+  rows.push({member_email,period,due_date,amount_cents:amount,status,paid_on,reference:get(['referencia','comprovante'])});
+ }
+ return {rows,errors};
+}
+export function transactionsFromCsv(input:string):{rows:ImportedTransaction[];errors:string[]}{
+ const t=readTable(input),rows:ImportedTransaction[]=[],errors:string[]=[];
+ for(const [i,row] of t.records.entries()){
+  const get=(h:string[])=>t.field(h,row);
+  const kindRaw=normalize(get(['tipo','kind']));
+  const kind:ImportedTransaction['kind']=['receita','income','entrada'].includes(kindRaw)?'income':'expense';
+  const occurred_on=dateOnly(get(['data','occurred_on']));
+  const description=get(['descricao','description']);
+  const category=get(['categoria','category']);
+  const value=get(['valorcentavos','valor','amount_cents']);
+  const idx=t.headers.findIndex(h=>['valorcentavos','valor','amountcents'].includes(h));
+  const amount=money(value,idx>=0&&t.headers[idx].includes('centav'));
+  if(!['receita','income','entrada','despesa','expense','saida'].includes(kindRaw)||!occurred_on||!description||!category||amount===null){
+   errors.push(`Linha ${i+2}: tipo, data, categoria, descrição ou valor inválido`);continue
+  }
+  rows.push({kind,occurred_on,description,category,amount_cents:amount,party:get(['favorecido','origem','party']),payment_method:get(['forma','payment_method','metodo']),reference:get(['referencia','reference'])});
+ }
+ return {rows,errors};
+}

@@ -63,7 +63,7 @@ export function ImageTextBlock({widget:w,editing=false}:{widget:CibWidget;editin
      {w.label&&<span className="cib-overline">{w.label}</span>}
      <h2>{w.title||'Histórias que conectam'}</h2>
      <p>{w.text||'Conte aqui a história do grupo.'}</p>
-     {w.url&&<a className="cib-flat-link" href={w.url}>Saiba mais <span aria-hidden="true">↗</span></a>}
+     {w.url&&<a className="cib-flat-link" href={editing?'#':w.url} onClick={editing?e=>e.preventDefault():undefined}>Saiba mais <span aria-hidden="true">↗</span></a>}
    </div>
  </div>;
 }

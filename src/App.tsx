@@ -45,7 +45,7 @@ function ProtectedEditor(){
  const [allowed,setAllowed]=useState<'loading'|'yes'|'no'>('loading');
  useEffect(()=>{api<{user:User}>('me').then(x=>setAllowed(x.user.role==='admin'?'yes':'no')).catch(()=>setAllowed('no'));},[]);
  if(allowed==='loading')return <div className="page-loading">Carregando editor...</div>;
- return allowed==='yes'?<VisualEditor/>:<Navigate to="/entrar" replace/>;
+ return allowed==='yes'?<VisualEditorV2/>:<Navigate to="/entrar" replace/>;
 }
 
 function ProtectedFinanceTools({mode}:{mode:'recurrences'|'import'}){

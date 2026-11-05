@@ -91,16 +91,16 @@ async function audit(db: DB, user: User | null, action: string, entity: string, 
     .bind(uuid(), user?.id ?? null, action, entity, entityId, JSON.stringify(details), NOW()).run();
 }
 const defaults: Record<string, string> = {
-  group_name: 'Conectando Ideias Brasil',
+  group_name: 'Sua Organização',
   monthly_amount_cents: '4000',
   due_day: '10',
   pix_key: '',
   pix_receiver: '',
-  pix_city: 'BLUMENAU',
+  pix_city: '',
   contact_email: '',
   contact_whatsapp: '',
-  meeting_place: 'Auditório do Casarão dos Sonhos, Blumenau - SC',
-  pix_bank_name: '', pix_bank_code: '', pix_branch: '', pix_account: '', pix_account_type: 'corrente', pix_tax_id: '', pix_description: 'Mensalidade CIB',
+  meeting_place: '',
+  pix_bank_name: '', pix_bank_code: '', pix_branch: '', pix_account: '', pix_account_type: 'corrente', pix_tax_id: '', pix_description: 'Cobrança da organização',
   pix_display_bank_details: 'false', billing_auto_notices: 'false',
 };
 async function getSettings(db: DB): Promise<Record<string, string>> {
@@ -120,7 +120,7 @@ function csv(rows: any[], columns: [string,string][]): Response {
     return `"${cell.replace(/"/g, '""')}"`;
   };
   const content = [columns.map(c => safe(c[1])).join(';'), ...rows.map(row => columns.map(([field]) => safe(row[field])).join(';'))].join('\r\n');
-  return new Response('\ufeff' + content, { headers: { 'Content-Type': 'text/csv; charset=utf-8', 'Cache-Control': 'no-store', 'Content-Disposition': 'attachment; filename="conectando-ideias-relatorio.csv"' } });
+  return new Response('\ufeff' + content, { headers: { 'Content-Type': 'text/csv; charset=utf-8', 'Cache-Control': 'no-store', 'Content-Disposition': 'attachment; filename="relatorio-organizacao.csv"' } });
 }
 
 // Bootstrap only a completely empty D1. Never auto-modify a database with app tables.
@@ -147,7 +147,7 @@ async function handle(context: Context): Promise<Response> {
   await initializeEmptyDatabase(db);
   await ensureExtensionSchema(db);
 
-  if (is('GET', 'health')) return json({ ok: true, service: 'Conectando Ideias Brasil', date: NOW() });
+  if (is('GET', 'health')) return json({ ok: true, service: 'Plataforma NPE White Label', date: NOW() });
   if (is('GET', 'public')) {
     const s = await getSettings(db);
     return json({ group_name: s.group_name, monthly_amount_cents: Number(s.monthly_amount_cents), due_day: Number(s.due_day), meeting_place: s.meeting_place, contact_email: s.contact_email, contact_whatsapp: s.contact_whatsapp, pix_available: !!(s.pix_key && s.pix_receiver) });
@@ -188,24 +188,24 @@ async function handle(context: Context): Promise<Response> {
     try {
       hashed = await passwordHash(newPassword);
     } catch (error) {
-      console.error('CIB_SETUP_CRYPTO', error);
-      fail('Falha ao proteger a senha. Informe à equipe o código CIB_SETUP_CRYPTO.', 500);
+      console.error('NPE_SETUP_CRYPTO', error);
+      fail('Falha ao proteger a senha. Informe à equipe o código NPE_SETUP_CRYPTO.', 500);
     }
     const userId = uuid(), memberId = uuid(), now = NOW();
     // A restrição UNIQUE do banco impede duas inicializações simultâneas com o mesmo e-mail.
     try {
       await db.batch([
-        db.prepare('INSERT INTO members(id,name,email,company,status,joined_at,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?)').bind(memberId, name, loginEmail, 'Administração CIB', 'active', currentDateBR(), now, now),
+        db.prepare('INSERT INTO members(id,name,email,company,status,joined_at,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?)').bind(memberId, name, loginEmail, 'Administração da organização', 'active', currentDateBR(), now, now),
         db.prepare('INSERT INTO users(id,email,password_salt,password_hash,role,member_id,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?)').bind(userId, loginEmail, hashed.salt, hashed.hash, 'admin', memberId, now, now),
         db.prepare('INSERT INTO audit_logs(id,actor_id,action,entity_type,entity_id,details,created_at) VALUES(?,?,?,?,?,?,?)')
           .bind(uuid(), userId, 'initial_setup', 'user', userId, '{}', now),
       ]);
     } catch (error) {
       const message = String((error as Error)?.message ?? '');
-      console.error('CIB_SETUP_D1', error);
+      console.error('NPE_SETUP_D1', error);
       if (/UNIQUE constraint failed/i.test(message)) fail('O administrador já existe. Atualize a página e tente entrar.', 409);
-      if (/FOREIGN KEY constraint failed/i.test(message)) fail('Inconsistência no banco de dados. Informe o código CIB_SETUP_D1_FK.', 500);
-      fail('Não foi possível gravar o administrador no D1. Informe o código CIB_SETUP_D1.', 500);
+      if (/FOREIGN KEY constraint failed/i.test(message)) fail('Inconsistência no banco de dados. Informe o código NPE_SETUP_D1_FK.', 500);
+      fail('Não foi possível gravar o administrador no D1. Informe o código NPE_SETUP_D1.', 500);
     }
     return json({ success: true, message: 'Administração criada. Faça login.' }, 201);
   }
@@ -247,10 +247,10 @@ async function handle(context: Context): Promise<Response> {
     const e = email(data.email), name = required(data.name, 'o nome', 120), phone = required(data.phone, 'o telefone', 40), company = required(data.company, 'a empresa', 120);
     const cutoff = new Date(Date.now() - 24*3600_000).toISOString();
     const repeated = await db.prepare('SELECT COUNT(*) AS n FROM applications WHERE email=? AND created_at>?').bind(e, cutoff).first<{n: number}>();
-    if ((repeated?.n || 0) >= 2) fail('Já recebemos sua solicitação. Aguarde o contato do grupo.', 429);
+    if ((repeated?.n || 0) >= 2) fail('Já recebemos sua solicitação. Aguarde nosso contato.', 429);
     const id = uuid(), now = NOW();
     await db.prepare('INSERT INTO applications(id,name,email,phone,company,message,consented_at,created_at) VALUES(?,?,?,?,?,?,?,?)').bind(id,name,e,phone,company,str(data.message,1000),now,now).run();
-    return json({ success: true, message: 'Inscrição recebida. A comissão entrará em contato.' }, 201);
+    return json({ success: true, message: 'Solicitação recebida. Nossa equipe entrará em contato.' }, 201);
   }
   if (is('POST', 'activate')) {
     const data = await body(request), invitationToken = required(data.token, 'o convite', 128);
@@ -309,7 +309,7 @@ async function handle(context: Context): Promise<Response> {
     const data=await body(request),settings=await getSettings(db);
     if(!settings.pix_key||!settings.pix_receiver||!settings.pix_city)fail('Cadastre e salve a chave Pix, titular e cidade antes do teste',409);
     const amount=data.amount_cents===undefined?100:cents(data.amount_cents);
-    const code=buildPixCode({key:settings.pix_key,receiver:settings.pix_receiver,city:settings.pix_city,amountCents:amount,txid:'CIBTESTE'});
+    const code=buildPixCode({key:settings.pix_key,receiver:settings.pix_receiver,city:settings.pix_city,amountCents:amount,txid:'TESTE'});
     return json({code,receiver:settings.pix_receiver,amount_cents:amount,note:'QR Code de verificação. Não identifica pagamento nem cria cobrança.'});
   }
   if (is('GET','builder','page')) {
@@ -500,12 +500,13 @@ async function handle(context: Context): Promise<Response> {
     const charge=await db.prepare("SELECT c.id,c.period,c.due_date,c.amount_cents,c.status,m.name,m.email,m.phone FROM charges c JOIN members m ON m.id=c.member_id WHERE c.id=?").bind(path[1]).first<any>();
     if(!charge||charge.status!=='pending')fail('Cobrança inexistente ou não está aberta',409);
     const amount=(charge.amount_cents/100).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
-    const textMessage=`Olá, ${charge.name}! Sua mensalidade do Conectando Ideias Brasil de ${charge.period} no valor de ${amount} vence em ${charge.due_date}. Acesse o portal para consultar o Pix: ${new URL(request.url).origin}/entrar`;
+    const brand=(await getSettings(db)).group_name;
+    const textMessage=`Olá, ${charge.name}! Sua cobrança de ${brand}, competência ${charge.period}, no valor de ${amount}, vence em ${charge.due_date}. Consulte o Pix em ${new URL(request.url).origin}/entrar`;
     let manualUrl='';
     if(channel==='email'){
-      manualUrl=`mailto:${encodeURIComponent(charge.email)}?subject=${encodeURIComponent('Mensalidade Conectando Ideias Brasil')}&body=${encodeURIComponent(textMessage)}`;
+      manualUrl=`mailto:${encodeURIComponent(charge.email)}?subject=${encodeURIComponent('Cobrança '+brand)}&body=${encodeURIComponent(textMessage)}`;
       if(env.RESEND_API_KEY&&env.RESEND_FROM){
-        const response=await fetch('https://api.resend.com/emails',{method:'POST',headers:{Authorization:`Bearer ${env.RESEND_API_KEY}`,'Content-Type':'application/json'},body:JSON.stringify({from:env.RESEND_FROM,to:[charge.email],subject:'Sua mensalidade Conectando Ideias Brasil',text:textMessage})});
+        const response=await fetch('https://api.resend.com/emails',{method:'POST',headers:{Authorization:`Bearer ${env.RESEND_API_KEY}`,'Content-Type':'application/json'},body:JSON.stringify({from:env.RESEND_FROM,to:[charge.email],subject:'Cobrança de '+brand,text:textMessage})});
         if(!response.ok)fail('O provedor de e-mail recusou o envio. Verifique o domínio e as credenciais no Cloudflare.',502);
         await db.prepare("INSERT OR IGNORE INTO notice_logs(id,charge_id,channel,status,created_at) VALUES(?,?,?,?,?)").bind(uuid(),charge.id,channel,'sent',NOW()).run();
         return json({delivery:'sent',channel});
@@ -519,7 +520,7 @@ async function handle(context: Context): Promise<Response> {
         // Meta WhatsApp Business requires the approved template named cib_mensalidade.
         const response=await fetch(`https://graph.facebook.com/v21.0/${env.WHATSAPP_PHONE_NUMBER_ID}/messages`,{method:'POST',headers:{Authorization:`Bearer ${env.WHATSAPP_ACCESS_TOKEN}`,'Content-Type':'application/json'},body:JSON.stringify({
           messaging_product:'whatsapp',to:phone,type:'template',
-          template:{name:'cib_mensalidade',language:{code:'pt_BR'},components:[{type:'body',parameters:[
+          template:{name:'mensalidade_cliente',language:{code:'pt_BR'},components:[{type:'body',parameters:[
             {type:'text',text:charge.name},{type:'text',text:charge.period},
             {type:'text',text:amount},{type:'text',text:charge.due_date}
           ]}]}
@@ -669,7 +670,7 @@ async function handle(context: Context): Promise<Response> {
     if (!isManager && charge.member_id!==user.member_id) fail('Acesso negado',403);
     if (charge.status==='canceled') fail('Cobrança cancelada',409);
     const s = await getSettings(db);
-    if (!s.pix_key || !s.pix_receiver || !s.pix_city) fail('O Pix do grupo ainda não foi configurado pela tesouraria',409);
+    if (!s.pix_key || !s.pix_receiver || !s.pix_city) fail('A conta Pix ainda não foi configurada pelo financeiro',409);
     return json({ code:buildPixCode({key:s.pix_key,receiver:s.pix_receiver,city:s.pix_city,amountCents:charge.amount_cents,txid:charge.id.replace(/-/g,'').slice(0,25)}), amount_cents:charge.amount_cents, receiver:s.pix_receiver, period:charge.period, paid:charge.status==='paid' });
   }
   if (method==='POST' && path[0]==='charges' && path.length===3 && path[2]==='mark-paid') {

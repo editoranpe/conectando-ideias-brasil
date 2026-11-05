@@ -40,13 +40,18 @@ jobs:
             echo 'Binding DB ainda não está disponível no Worker. Verifique Workers & Pages > Bindings e o deploy do Cloudflare.'
             exit 1
           fi
-          setup_status=$(curl -L --silent --show-error --max-time 20 -o /tmp/cib-setup.json -w '%{http_code}' "$SITE/api/setup-status" || true)
-          echo "API setup-status HTTP: $setup_status"
-          cat /tmp/cib-setup.json 2>/dev/null || true
-          echo
+          setup_status=000
+          for attempt in $(seq 1 15); do
+            setup_status=$(curl -L --silent --show-error --max-time 20 -o /tmp/cib-setup.json -w '%{http_code}' "$SITE/api/setup-status" || true)
+            echo "API setup-status tentativa $attempt: HTTP $setup_status"
+            cat /tmp/cib-setup.json 2>/dev/null || true
+            echo
+            if [ "$setup_status" = '200' ]; then break; fi
+            sleep 10
+          done
           if [ "$setup_status" = '200' ]; then
             echo 'D1 acessível e tabelas iniciais presentes.'
           else
-            echo 'O D1 está conectado, mas a inicialização automática do schema ainda não está disponível. Verifique se o Worker atualizou e revise migrations/0001_initial.sql no Cloudflare.'
+            echo 'O D1 está conectado, mas a inicialização automática do schema ainda não está disponível. Verifique o deploy no Cloudflare e revise migrations/0001_initial.sql.'
             exit 1
           fi

@@ -6,6 +6,7 @@ import './styles.css';
 import './visual.css';
 import './financeTools.css';
 import './flatDesign.css';
+import './npeTheme.css';
 
 createRoot(document.getElementById('root')!).render(
   <React.StrictMode><BrowserRouter><App/></BrowserRouter></React.StrictMode>
